@@ -17,13 +17,11 @@
 package com.example.android.bluetoothlegatt;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -33,7 +31,6 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.EditText;
 import android.widget.ExpandableListView;
 import android.widget.SimpleExpandableListAdapter;
 import android.widget.TextView;
@@ -42,6 +39,10 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+
+import static com.example.android.bluetoothlegatt.Utility.isCharacteristicReadable;
+import static com.example.android.bluetoothlegatt.Utility.isCharacteristicWritable;
+import static com.example.android.bluetoothlegatt.Utility.isCharacteristicNotifiable;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect, display data,
@@ -117,27 +118,6 @@ public class DeviceControlActivity extends Activity {
         }
     };
 
-    /**
-     * @return Returns <b>true</b> if property is writable
-     */
-    public static boolean isCharacteristicWritable(BluetoothGattCharacteristic characteristic) {
-        return ((characteristic.getProperties() & (BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_WRITE_NO_RESPONSE)) != 0);
-    }
-
-    /**
-     * @return Returns <b>true</b> if property is Readable
-     */
-    public static boolean isCharacteristicReadable(BluetoothGattCharacteristic characteristic) {
-        return ((characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) != 0);
-    }
-
-    /**
-     * @return Returns <b>true</b> if property is supports notification
-     */
-    public boolean isCharacteristicNotifiable(BluetoothGattCharacteristic characteristic) {
-        return (characteristic.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) != 0;
-    }
-
     // If a given GATT characteristic is selected, check for supported features.
     private final ExpandableListView.OnChildClickListener servicesListClickListener =
             new ExpandableListView.OnChildClickListener() {
@@ -147,6 +127,9 @@ public class DeviceControlActivity extends Activity {
                     if (mGattCharacteristics != null) {
                         final BluetoothGattCharacteristic characteristic =
                                 mGattCharacteristics.get(groupPosition).get(childPosition);
+                        startActivity(new Intent(DeviceControlActivity.this, ContainerActivity.class));
+//                        DeviceControlActivity.this.getFragmentManager().beginTransaction().add(R.id.container, new DeviceControlFragment(characteristic)).commit();
+                        /*
                         if (isCharacteristicReadable(characteristic)) {
                             // If there is an active notification on a characteristic, clear
                             // it first so it doesn't update the data field on the user interface.
@@ -158,31 +141,10 @@ public class DeviceControlActivity extends Activity {
                             mBluetoothLeService.readCharacteristic(characteristic);
                         }
                         if (isCharacteristicWritable(characteristic)) {
-                            Toast.makeText(getApplicationContext(), "" + (getApplicationContext() == null), Toast.LENGTH_SHORT).show();
-                            try {
-                                final EditText input = new EditText(DeviceControlActivity.this);
-                                new AlertDialog.Builder(DeviceControlActivity.this)
-                                        .setTitle("Input Box")
-                                        .setMessage("Please insert a command")
-                                        .setView(input)
-                                        .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int whichButton) {
-                                                String command = input.getText().toString() + "\n";
-                                                characteristic.setValue(command);
-                                                Log.d(TAG, "set characteristic value to " + command);
-                                                mBluetoothLeService.writeCharacteristic(characteristic);
-                                            }
-                                        })
-                                        .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(DialogInterface dialog, int whichButton) {
-                                            }
-                                        })
-                                        .show();
-                            } catch (Exception e) {
-                                Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_LONG).show();
-                            }
+//                            String command = input.getText().toString() + "\n";
+//                            characteristic.setValue(command);
+//                            Log.d(TAG, "set characteristic value to " + command);
+//                            mBluetoothLeService.writeCharacteristic(characteristic);
                         } else {
                             Toast.makeText(getApplicationContext(), "Characteristic is not writable!", Toast.LENGTH_LONG).show();
                         }
@@ -191,6 +153,7 @@ public class DeviceControlActivity extends Activity {
                             mBluetoothLeService.setCharacteristicNotification(
                                     characteristic, true);
                         }
+                        */
                         return true;
                     }
                     return false;
@@ -205,7 +168,7 @@ public class DeviceControlActivity extends Activity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.gatt_services_characteristics);
+        setContentView(R.layout.activity_device_control);
 
         final Intent intent = getIntent();
         mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);

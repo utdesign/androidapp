@@ -1,0 +1,216 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context="com.example.android.bluetoothlegatt.DeviceControlFragment">
+
+    <!-- TextBox for Response -->
+    <TextView
+        android:id="@+id/tv_response"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/margin_large"
+        android:layout_marginRight="@dimen/margin_large"
+        android:layout_marginTop="@dimen/margin_large"
+        android:paddingTop="@dimen/margin_small"
+        android:paddingBottom="@dimen/margin_small"
+        android:paddingLeft="@dimen/margin_small"
+        android:background="@drawable/border"
+        android:gravity="left"
+        android:text="OK"
+        android:textStyle="bold"
+        android:ems="22" />
+
+    <!-- TextBox for Instruction -->
+    <TextView
+        android:id="@+id/tv_last_command"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="@dimen/margin_large"
+        android:layout_marginTop="@dimen/margin_medium"
+        android:layout_marginRight="@dimen/margin_large"
+        android:paddingTop="@dimen/margin_small"
+        android:paddingBottom="@dimen/margin_small"
+        android:paddingLeft="@dimen/margin_small"
+        android:background="@drawable/border"
+        android:gravity="left"
+        android:text="put 14 0"
+        android:textStyle="bold"
+        android:ems="22" />
+
+    <!-- First Line: Read - Write - Do -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="NO DATE PRESENT"
+        android:layout_marginTop="@dimen/margin_small"
+        android:paddingTop="@dimen/margin_medium"
+        android:paddingBottom="@dimen/margin_medium"
+        android:gravity="center_horizontal"
+        android:textStyle="bold"
+        android:ems="16" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/margin_medium"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_read"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="@string/btn_read"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:layout_marginRight="@dimen/margin_small" />
+
+        <Button
+            android:id="@+id/btn_write"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="@string/btn_write"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:layout_marginRight="@dimen/margin_small" />
+
+        <Button
+            android:id="@+id/btn_do"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:text="@string/btn_do"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:layout_marginRight="@dimen/margin_small" />
+    </LinearLayout>
+
+    <!-- NO DATA PRESENT -->
+
+    <!-- Second Line: Get -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/margin_small"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_get"
+            android:text="@string/btn_get"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:layout_height="match_parent" />
+
+        <EditText
+            android:id="@+id/et_get_pin"
+            android:layout_width="@dimen/et_width_small"
+            android:inputType="numberDecimal"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:gravity="center"
+            android:text="7" />
+    </LinearLayout>
+
+    <!-- Third Line: Put -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/margin_small"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_put"
+            android:text="@string/btn_put"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:layout_height="match_parent" />
+
+        <EditText
+            android:id="@+id/et_put_pin"
+            android:layout_width="@dimen/et_width_small"
+            android:inputType="numberDecimal"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:gravity="center"
+            android:text="14" />
+
+        <EditText
+            android:id="@+id/et_put_value"
+            android:layout_width="@dimen/et_width_small"
+            android:gravity="center"
+            android:inputType="numberDecimal"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="0" />
+    </LinearLayout>
+
+    <!-- Fourth Line: If -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_if"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="@string/btn_if" />
+
+        <EditText
+            android:id="@+id/et_if_lhs"
+            android:layout_width="@dimen/et_width_small"
+            android:inputType="numberDecimal"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:gravity="center"
+            android:text="6" />
+
+        <Button
+            android:id="@+id/btn_if_operator"
+            android:layout_width="@dimen/btn_width_tiny"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="&lt;" />
+
+        <EditText
+            android:id="@+id/et_if_rhs"
+            android:layout_width="@dimen/et_width_small"
+            android:gravity="center"
+            android:inputType="numberDecimal"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="10" />
+    </LinearLayout>
+
+    <!-- Fifth and Last Line: Sleep - Endif -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btn_sleep"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="@string/btn_sleep" />
+
+        <EditText
+            android:id="@+id/et_sleep_ms"
+            android:layout_width="@dimen/et_width_small"
+            android:layout_height="match_parent"
+            android:inputType="numberDecimal"
+            android:gravity="center"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="50" />
+
+        <Button
+            android:id="@+id/btn_endif"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_small"
+            android:text="@string/btn_end_if" />
+    </LinearLayout>
+
+</LinearLayout>
