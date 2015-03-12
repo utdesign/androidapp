@@ -28,7 +28,7 @@ public class UTDesignApplication extends Application {
         singleton = this;
 
         // Initialize Parse
-        Parse.initialize(this, Utility.PARSE_APPLICATION_ID, Utility.PARSE_CLIENT_KEY);
+        Parse.initialize(this, Constant.PARSE_APPLICATION_ID, Constant.PARSE_CLIENT_KEY);
         ParsePush.subscribeInBackground("", new SaveCallback() {
             @Override
             public void done(ParseException e) {

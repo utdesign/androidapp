@@ -12,16 +12,28 @@ apply plugin: 'com.android.application'
 
 repositories {
     jcenter()
+
+    maven { url "https://jitpack.io" }
 }
 
 
 dependencies {
+    // default Android libraries
     compile 'com.android.support:support-v4:21.0.2'
     compile 'com.android.support:support-v13:21.0.2'
     compile 'com.android.support:cardview-v7:21.0.2'
 
+    // Roboguice
+    compile 'org.roboguice:roboguice:3.+'
+    provided 'org.roboguice:roboblender:3.+'
+    compile 'com.google.code.findbugs:jsr305:1.3.9'
+
+    // Parse
     compile 'com.parse.bolts:bolts-android:1.+'
     compile fileTree(dir: 'libs', include: 'Parse-*.jar')
+
+    // Graph View
+    compile 'com.github.PhilJay:MPAndroidChart:v2.0.7'
 }
 
 // The sample build uses multiple directories to
@@ -46,6 +58,7 @@ android {
             dirs.each { dir ->
                 java.srcDirs "src/${dir}/java"
                 res.srcDirs "src/${dir}/res"
+                assets.srcDirs "src/${dir}/assets"
             }
             java.srcDirs = ['src/main/java', 'src/main/java/com/example/android/bluetooth/gattprofile', 'src/main/java/com/example/android/bluetoothlegatt/gattprofile']
         }

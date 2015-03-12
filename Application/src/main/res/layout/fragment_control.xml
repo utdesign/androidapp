@@ -109,6 +109,15 @@
             android:layout_marginLeft="@dimen/margin_small"
             android:gravity="center"
             android:text="7" />
+
+        <CheckBox
+            android:id="@+id/checkbox_graph"
+            android:layout_width="@dimen/btn_width_small"
+            android:layout_height="match_parent"
+            android:layout_marginLeft="@dimen/margin_large"
+            android:checked="false"
+            android:ems="14"
+            android:text="@string/cb_graph"/>
     </LinearLayout>
 
     <!-- Third Line: Put -->

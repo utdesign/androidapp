@@ -37,13 +37,6 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.parse.Parse;
-import com.parse.ParseException;
-import com.parse.ParsePush;
-import com.parse.SaveCallback;
-
-import com.parse.Parse;
-
 import java.util.ArrayList;
 
 /**
@@ -268,7 +261,6 @@ public class DeviceScanActivity extends ListActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-//                            Log.i(TAG, "scan record = " + Utility.bytesToHex(scanRecord));
                             mLeDeviceListAdapter.addDevice(device);
                             mLeDeviceListAdapter.notifyDataSetChanged();
                         }

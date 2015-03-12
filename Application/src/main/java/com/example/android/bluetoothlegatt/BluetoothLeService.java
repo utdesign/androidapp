@@ -46,6 +46,9 @@ public class BluetoothLeService extends Service {
     private BluetoothAdapter mBluetoothAdapter;
     private String mBluetoothDeviceAddress;
     private BluetoothGatt mBluetoothGatt;
+    private BluetoothGattService mService;
+    private BluetoothGattCharacteristic mReadCharacteristic;
+    private BluetoothGattCharacteristic mWriteCharacteristic;
     private int mConnectionState = STATE_DISCONNECTED;
 
     private static final int STATE_DISCONNECTED = 0;
@@ -292,12 +295,44 @@ public class BluetoothLeService extends Service {
         mBluetoothGatt.readCharacteristic(characteristic);
     }
 
+    /**
+     * Request a read on the default {@code BluetoothGattCharacteristic}. The read result is reported
+     * asynchronously through the {@code BluetoothGattCallback#onCharacteristicRead(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
+     */
+    public void readCharacteristic() {
+        if (mReadCharacteristic == null) {
+            Log.w(TAG, "Bluetooth Read Characteristic not initialized");
+            return;
+        }
+        readCharacteristic(mReadCharacteristic);
+    }
+
+    /**
+     * Request a write on a given {@code BluetoothGattCharacteristic}. The write result is reported
+     * asynchronously through the {@code BluetoothGattCallback#onCharacteristicWrite(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
+     * callback.
+     *
+     * @param characteristic The characteristic to read from.
+     */
     public void writeCharacteristic(BluetoothGattCharacteristic characteristic) {
         if (mBluetoothAdapter == null || mBluetoothGatt == null) {
             Log.w(TAG, "BluetoothAdapter not initialized.");
             return;
         }
         mBluetoothGatt.writeCharacteristic(characteristic);
+    }
+
+    /**
+     * Request a write on the default {@code BluetoothGattCharacteristic}. The write result is reported
+     * asynchronously through the {@code BluetoothGattCallback#onCharacteristicWrite(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
+     */
+    public void writeCharacteristic(String instruction) {
+        if (mWriteCharacteristic == null) {
+            Log.w(TAG, "Bluetooth Write Characteristic not initialized");
+            return;
+        }
+        mWriteCharacteristic.setValue(instruction);
+        writeCharacteristic(mWriteCharacteristic);
     }
 
     /**
@@ -333,5 +368,23 @@ public class BluetoothLeService extends Service {
         if (mBluetoothGatt == null) return null;
 
         return mBluetoothGatt.getServices();
+    }
+
+    /**
+     * Retrieves the default GATT service of the currently connected device.
+     *
+     * @return The default {@code BluetoothGattService} of the current supported device.
+     */
+    public BluetoothGattService getSupportedService() {
+        return mService;
+    }
+
+    /**
+     * Retrieves the default GATT characteristic of the currently connected device.
+     *
+     * @return The default {@code BluetoothGattCharacteristic} of the current supported device.
+     */
+    public BluetoothGattCharacteristic getSupportedCharacteristic() {
+        return mReadCharacteristic;
     }
 }
