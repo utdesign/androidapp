@@ -7,4 +7,7 @@
     <dimen name="et_width_small">60dp</dimen>
     <dimen name="btn_width_small">100dp</dimen>
     <dimen name="btn_width_tiny">60dp</dimen>
+
+    <dimen name="tv_height">40dp</dimen>
+    <dimen name="tab_height">48dp</dimen>
 </resources>

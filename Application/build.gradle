@@ -34,6 +34,12 @@ dependencies {
 
     // Graph View
     compile 'com.github.PhilJay:MPAndroidChart:v2.0.7'
+
+    // Google Progress Bar
+    compile 'com.jpardogo.googleprogressbar:library:1.1.0'
+
+    // Material Tab-strip ActionBar
+    compile 'com.astuetz:pagerslidingtabstrip:1.0.1'
 }
 
 // The sample build uses multiple directories to
