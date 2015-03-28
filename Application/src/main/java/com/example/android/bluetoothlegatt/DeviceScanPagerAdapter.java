@@ -1,8 +1,9 @@
 package com.example.android.bluetoothlegatt;
 
-import android.app.Fragment;
-import android.app.FragmentManager;
-import android.support.v13.app.FragmentPagerAdapter;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentPagerAdapter;
+import android.view.ViewGroup;
 
 import java.util.ArrayList;
 
@@ -13,11 +14,11 @@ import java.util.ArrayList;
 public class DeviceScanPagerAdapter extends FragmentPagerAdapter {
     public static final String TAG = DeviceScanPagerAdapter.class.getSimpleName();
     public static final String[] TITLES = new String[]{DeviceControlActivity.BLUETOOTH_METHOD, DeviceControlActivity.WIFI_METHOD};
-    private DeviceListFragment[] mFragments;
+    private Fragment[] mFragments;
 
     public DeviceScanPagerAdapter(FragmentManager fm) {
         super(fm);
-        mFragments = new DeviceListFragment[TITLES.length];
+        mFragments = new Fragment[TITLES.length];
     }
 
     @Override
@@ -27,11 +28,22 @@ public class DeviceScanPagerAdapter extends FragmentPagerAdapter {
 
     @Override
     public Fragment getItem(int position) {
-        mFragments[position] = DeviceListFragment.newInstance(TITLES[position]);
+        if (position == 0) {
+            mFragments[0] = new LeDeviceListFragment();
+        } else if (position == 1) {
+            mFragments[1] = new WifiDeviceListFragment();
+        }
         return mFragments[position];
     }
 
-    public Fragment getCurrentFragment(int position) {
+    @Override
+    public Object instantiateItem(ViewGroup container, int position) {
+        Fragment fragment = (Fragment) super.instantiateItem(container, position);
+        mFragments[position] = fragment;
+        return fragment;
+    }
+
+    public Fragment getCurrentItem(int position) {
         return mFragments[position];
     }
 

@@ -14,6 +14,7 @@ public class Constant {
     public static final String DEFAULT_MSP_SERVICE_UUID = "FFE1";
 
     /* Server Information */
-    public static final String IP_ADDRESS = "";
+    public static final String SERVER_IP_ADDRESS = "";
+    public static final String SERVER_URL = "";
 
 }

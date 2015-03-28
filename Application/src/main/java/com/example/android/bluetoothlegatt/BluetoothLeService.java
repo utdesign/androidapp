@@ -61,8 +61,12 @@ public class BluetoothLeService extends Service {
             "com.example.bluetooth.le.ACTION_GATT_DISCONNECTED";
     public final static String ACTION_GATT_SERVICES_DISCOVERED =
             "com.example.bluetooth.le.ACTION_GATT_SERVICES_DISCOVERED";
-    public final static String ACTION_DATA_AVAILABLE =
-            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE";
+    public static final String ACTION_DATA_AVAILABLE_READ =
+            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE_READ";
+    public static final String ACTION_DATA_AVAILABLE_WRITE =
+            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE_WRITE";
+    public static final String ACTION_DATA_AVAILABLE_NOTIFY =
+            "com.example.bluetooth.le.ACTION_DATA_AVAILABLE_NOTIFY";
     public final static String EXTRA_DATA =
             "com.example.bluetooth.le.EXTRA_DATA";
 
@@ -103,7 +107,7 @@ public class BluetoothLeService extends Service {
                                          BluetoothGattCharacteristic characteristic,
                                          int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+                broadcastUpdate(ACTION_DATA_AVAILABLE_READ, characteristic);
             }
         }
 
@@ -112,7 +116,7 @@ public class BluetoothLeService extends Service {
                                           BluetoothGattCharacteristic characteristic,
                                           int status) {
             if (status == BluetoothGatt.GATT_SUCCESS) {
-                broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+                broadcastUpdate(ACTION_DATA_AVAILABLE_WRITE, characteristic);
             } else {
                 Log.d(TAG, "write status = " + status + " on characteristic " + characteristic.getUuid());
             }
@@ -121,7 +125,7 @@ public class BluetoothLeService extends Service {
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt,
                                             BluetoothGattCharacteristic characteristic) {
-            broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+            broadcastUpdate(ACTION_DATA_AVAILABLE_NOTIFY, characteristic);
         }
     };
 

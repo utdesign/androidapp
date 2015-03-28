@@ -139,12 +139,10 @@ public class DeviceControlActivity extends Activity {
                 // If Bluetooth service is disconnected, leave for front page
                 mConnected = false;
                 Toast.makeText(DeviceControlActivity.this, "Device has been disconnected.", Toast.LENGTH_SHORT).show();
-                onBackPressed();
+                finish();
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 // Search all the supported services and characteristics on the user interface.
                 setupBluetoothLeService();
-            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                displayData(intent.getStringExtra(BluetoothLeService.EXTRA_DATA));
             }
         }
     };
@@ -172,7 +170,7 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void onCommanSet() {
-        if (BluetoothLeUtility.isCharacteristicReadable(mGattCharacteristic)) {
+        if (Util.isCharacteristicReadable(mGattCharacteristic)) {
             // If there is an active notification on a characteristic, clear
             // it first so it doesn't update the data field on the user interface.
             if (mNotifyCharacteristic != null) {
@@ -182,14 +180,14 @@ public class DeviceControlActivity extends Activity {
             }
             mBluetoothLeService.readCharacteristic(mGattCharacteristic);
         }
-        if (BluetoothLeUtility.isCharacteristicWritable(mGattCharacteristic)) {
+        if (Util.isCharacteristicWritable(mGattCharacteristic)) {
             String command = "put 14 0\n";
             mGattCharacteristic.setValue(command);
             mBluetoothLeService.writeCharacteristic(mGattCharacteristic);
         } else {
             Toast.makeText(getApplicationContext(), "Characteristic is not writable!", Toast.LENGTH_LONG).show();
         }
-        if (BluetoothLeUtility.isCharacteristicNotifiable(mGattCharacteristic)) {
+        if (Util.isCharacteristicNotifiable(mGattCharacteristic)) {
             mNotifyCharacteristic = mGattCharacteristic;
             mBluetoothLeService.setCharacteristicNotification(
                     mGattCharacteristic, true);
@@ -379,12 +377,14 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
-    private static IntentFilter makeGattUpdateIntentFilter() {
+    public static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
-        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_READ);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE);
+        intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY);
         return intentFilter;
     }
 
