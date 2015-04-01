@@ -60,10 +60,15 @@ public class Util {
         return bluetoothManager.getAdapter();
     }
 
-    public static boolean isWifiConnected(Context context) {
-        ConnectivityManager connManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo mWifi = connManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI);
-        return mWifi.isConnected();
+    /**
+     * Returns <p>true</p> if the device is connected to the Internet.
+     * @param context
+     * @return
+     */
+    public static boolean isNetworkConnected(Context context) {
+        ConnectivityManager connectivityManager = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo activeInfo = connectivityManager.getActiveNetworkInfo();
+        return (activeInfo != null && activeInfo.isConnected());
     }
 
 }

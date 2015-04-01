@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.android.volley.Request;
@@ -53,7 +54,6 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
         intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.WIFI_METHOD);
-
         mActivity.scanLeDevice(false);
         startActivity(intent);
     }
@@ -74,7 +74,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
             switch (item.getItemId()) {
                 case R.id.menu_scan:
                 case R.id.menu_refresh: {
-                    scan();
+                    onScan();
                     break;
                 }
                 case R.id.menu_stop: {
@@ -89,7 +89,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
     @Override
     public void onResume() {
         super.onResume();
-        scan();
+        onScan();
     }
 
     @Override
@@ -112,44 +112,6 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
         if (mListAdapter != null) mListAdapter.clear();
     }
 
-    private void scan() {
-        if (!Util.isWifiConnected(mActivity)) {
-            // TODO: using 3G/4G?
-            new MaterialDialog.Builder(mActivity)
-                    .title(R.string.dialog_title)
-                    .content(R.string.dialog_content)
-                    .positiveText(R.string.enable)
-                    .callback(new MaterialDialog.ButtonCallback() {
-                        @Override
-                        public void onPositive(MaterialDialog dialog) {
-                            // Enabling Wifi
-                            WifiManager wifiManager = (WifiManager) mActivity.getSystemService(Context.WIFI_SERVICE);
-                            wifiManager.setWifiEnabled(true);
-
-                            // Initializes list view adapter.
-                            mListAdapter = new WifiDeviceListAdapter();
-                            setListAdapter(mListAdapter);
-                            mActivity.scanWifiDevice(true);
-                            Log.d(TAG, "sending request");
-                            // sendScanRequest();
-                        }
-
-                        @Override
-                        public void onNegative(MaterialDialog dialog) {
-                        }
-                    })
-                    .negativeText(R.string.cancel)
-                    .show();
-        } else {
-            // Initializes list view adapter.
-            Log.d(TAG, "sending request");
-            mListAdapter = new WifiDeviceListAdapter();
-            setListAdapter(mListAdapter);
-            mActivity.scanWifiDevice(true);
-            // sendScanRequest();
-        }
-    }
-
     private void sendScanRequest() {
         Log.d(TAG, "Start Wifi Scan");
         // Instantiate the RequestQueue.
@@ -160,14 +122,17 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        // Display the first 500 characters of the response string.
                         if (mActivity == null || response == null || response.length() == 0) return;
                         try {
                             JSONObject jsonObject = new JSONObject(response);
-                            // Parse
+                            // Parsing the response.
                             mListAdapter = new WifiDeviceListAdapter();
                             WifiDeviceListFragment.this.setListAdapter(mListAdapter);
                             JSONArray deviceList = jsonObject.getJSONArray(JSON_DEVICE_LIST);
+                            if (deviceList == null) {
+                                Toast.makeText(mActivity, "Error: No device list in response.", Toast.LENGTH_SHORT).show();
+                                return;
+                            }
                             for (int i = 0; i < deviceList.length(); i++) {
                                 JSONObject device = (JSONObject) deviceList.get(i);
                                 String deviceName = device.getString(JSON_DEVICE_NAME);
@@ -179,7 +144,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
                                 }
                             }
                         } catch (Exception e) {
-                            Log.w(TAG, "Problem parsing response.");
+                            Log.w(TAG, "Problem(s) parsing the response.");
                         }
                         mActivity.scanWifiDevice(false);
                         Log.d(TAG, "Stop Wifi Scan");
@@ -198,7 +163,41 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
 
     @Override
     public void onScan() {
-        scan();
+        if (!Util.isNetworkConnected(mActivity)) {
+            new MaterialDialog.Builder(mActivity)
+                    .title(R.string.dialog_title)
+                    .content(R.string.dialog_content)
+                    .positiveText(R.string.enable)
+                    .negativeText(R.string.cancel)
+                    .callback(new MaterialDialog.ButtonCallback() {
+                        @Override
+                        public void onPositive(MaterialDialog dialog) {
+                            // Enabling Wifi
+                            WifiManager wifiManager = (WifiManager) mActivity.getSystemService(Context.WIFI_SERVICE);
+                            wifiManager.setWifiEnabled(true);
+
+                            // Initializes list view adapter.
+                            mListAdapter = new WifiDeviceListAdapter();
+                            setListAdapter(mListAdapter);
+                            mActivity.scanWifiDevice(true);
+                            Log.d(TAG, "sending request");
+                            // sendScanRequest();
+                            dialog.dismiss();
+                        }
+
+                        @Override
+                        public void onNegative(MaterialDialog dialog) {
+                            dialog.dismiss();
+                        }
+                    }).autoDismiss(false).show();
+        } else {
+            // Initializes list view adapter.
+            Log.d(TAG, "sending request");
+            mListAdapter = new WifiDeviceListAdapter();
+            setListAdapter(mListAdapter);
+            mActivity.scanWifiDevice(true);
+            // sendScanRequest();
+        }
     }
 
     /**

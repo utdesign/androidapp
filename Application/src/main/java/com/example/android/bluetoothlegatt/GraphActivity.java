@@ -43,13 +43,16 @@ public class GraphActivity extends Activity {
     public static final int NUMBER_OF_WRITE_OPERATIONS = 20;
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
-    public static final String DEFAULT_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
-    public static final String DEFAULT_READ_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
-    public static final String DEFAULT_WRITE_CHARACTERISTIC_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
-    public static final String DEFAULT_NOTIFY_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
+    public static final String EXTRAS_GET_INSTRUCTION = "GET_INSTRUCTION";
+
+    public static final String DEFAULT_GRAPH_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
 
     private String mDeviceAddress;
     private String mDeviceName;
+    private String mGetInstruction;
     private BluetoothLeService mBluetoothLeService;
     private BluetoothGattCharacteristic mReadCharacteristic;
     private BluetoothGattCharacteristic mWriteCharacteristic;
@@ -199,8 +202,24 @@ public class GraphActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         final Intent intent = getIntent();
-        mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
-        mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        if (intent.hasExtra(EXTRAS_DEVICE_NAME)) {
+            mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
+        } else {
+            Log.d(TAG, "No device name");
+            finish();
+        }
+        if (intent.hasExtra(EXTRAS_DEVICE_ADDRESS)) {
+            mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        } else {
+            Log.d(TAG, "No device address");
+            finish();
+        }
+        if (intent.hasExtra(EXTRAS_GET_INSTRUCTION)) {
+            mGetInstruction = intent.getStringExtra(EXTRAS_GET_INSTRUCTION);
+        } else {
+            Log.d(TAG, "No get instruction");
+            finish();
+        }
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -276,7 +295,6 @@ public class GraphActivity extends Activity {
             Log.w(TAG, "Bluetooth Service is not fully setup.");
             finish();
         }
-
         setProgressBar();
 
         // Prepare data array
@@ -305,12 +323,12 @@ public class GraphActivity extends Activity {
         // Look for default service
         for (BluetoothGattService gattService : gattServices) {
 
-            if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_SERVICE_UUID)) {
+            if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_GRAPH_SERVICE_UUID)) {
                 Log.i(TAG, "GATT Service found");
                 // Look for characteristics to read and write
                 for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
                     final String uuid = characteristic.getUuid().toString();
-                    if (uuid.equalsIgnoreCase(DEFAULT_READ_CHARACTERISTIC_UUID) && Util.isCharacteristicReadable(characteristic)) {
+                    if (uuid.equalsIgnoreCase(DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID) && Util.isCharacteristicReadable(characteristic)) {
                         Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                         mReadCharacteristic = characteristic;
                         // If there is an active notification on a characteristic, clear
@@ -320,11 +338,11 @@ public class GraphActivity extends Activity {
                             mNotifyCharacteristic = null;
                         }
                     }
-                    if (uuid.equalsIgnoreCase((DEFAULT_WRITE_CHARACTERISTIC_UUID)) && Util.isCharacteristicWritable(characteristic)) {
+                    if (uuid.equalsIgnoreCase((DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID)) && Util.isCharacteristicWritable(characteristic)) {
                         Log.d(TAG, "Setup characteristic write" + uuid.substring(4, 8));
                         mWriteCharacteristic = characteristic;
                     }
-                    if (uuid.equalsIgnoreCase(DEFAULT_NOTIFY_CHARACTERISTIC_UUID) && Util.isCharacteristicNotifiable(characteristic)) {
+                    if (uuid.equalsIgnoreCase(DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID) && Util.isCharacteristicNotifiable(characteristic)) {
                         Log.d(TAG, "Setup characteristic notify" + uuid.substring(4, 8));
                         mNotifyCharacteristic = characteristic;
                         mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, true);

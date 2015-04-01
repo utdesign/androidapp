@@ -24,6 +24,7 @@
     <string name="title_devices">BLE Device Scan</string>
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
     <string name="title_activity_graph">GraphActivity</string>
+    <string name="title_activity_control">ControlActivity</string>
     <string name="action_settings">Settings</string>
     <string name="action_quit">Quit</string>
 
@@ -75,7 +76,7 @@
     <string name="menu_stop">Stop</string>
     <string name="menu_refresh">Refresh</string>
     <string name="menu_quit">Quit</string>
-    <string name="title_activity_control">ControlActivity</string>
+    <string name="menu_requesting">Requesting</string>
 
     <string name="dialog_content">Would you like to enable Wifi connection?</string>
     <string name="dialog_title">Wifi Enable</string>
