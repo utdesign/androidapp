@@ -33,19 +33,18 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.volley.RequestQueue;
+import com.android.volley.toolbox.JsonRequest;
+import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.jpardogo.android.googleprogressbar.library.FoldingCirclesDrawable;
 
 import java.util.List;
-
-import roboguice.inject.InjectView;
 
 /**
  * For a given BLE device, this Activity provides the user interface to send instructions and
@@ -62,19 +61,18 @@ public class DeviceControlActivity extends Activity {
     public static final String BLUETOOTH_METHOD = "BLUETOOTH";
     public static final String WIFI_METHOD = "WIFI";
 
-    // Default Graph Configuration
-    public static final String DEFAULT_GRAPH_SERVICE_UUID = "0000fff0-0000-1000-8000-00805f9b34fb";
-
     // Default MSP430 Configuration
-    public static final String DEFAULT_MSP430_SERVICE_UUID = "";
-    public static final String DEFAULT_MSP430_READ_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
-    public static final String DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID = "0000fff1-0000-1000-8000-00805f9b34fb";
-    public static final String DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID = "0000fff5-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_MSP430_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_MSP430_READ_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
+    public static final String DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
 
     // List of available instructions
     public static final String GET_INSTRUCTION = "get ";
     public static final String PUT_INSTRUCTION = "put ";
     public static final String SLEEP_INSTRUCTION = "sleep ";
+    public static final String IF_INSTRUCTION = "if ";
+    public static final String ENDIF_INSTRUCTION = "endif";
 
     private String mDeviceName;
     private String mDeviceAddress;
@@ -100,29 +98,22 @@ public class DeviceControlActivity extends Activity {
     // UI Elements
     private ProgressBar mProgressBar;
 
-    @InjectView(R.id.tv_response)
     private TextView mResponse;
-    @InjectView(R.id.tv_last_command)
     private TextView mLastInstruction;
-    @InjectView(R.id.btn_read)
     private Button mReadButton;
-    @InjectView(R.id.btn_get)
     private Button mGetButton;
-    @InjectView(R.id.btn_put)
     private Button mPutButton;
-    @InjectView(R.id.btn_sleep)
     private Button mSleepButton;
-    @InjectView(R.id.checkbox_graph)
     private CheckBox mGraphCheckBox;
-    @InjectView(R.id.et_get_pin)
     private EditText mGetPinEditText;
-    @InjectView(R.id.et_put_pin)
     private EditText mPutPinEditText;
-    @InjectView(R.id.et_put_value)
     private EditText mPutValEditText;
-    @InjectView(R.id.et_sleep_ms)
     private EditText mSleepDurationEditText;
-
+    private Button mIfOperatorButton;
+    private Button mIfButton;
+    private Button mEndIfButton;
+    private EditText mIfLhsEditText;
+    private EditText mIfRhsEditText;
 
     // Code to manage Service lifecycle.
     private final ServiceConnection mServiceConnection = new ServiceConnection() {
@@ -176,7 +167,7 @@ public class DeviceControlActivity extends Activity {
                     isWriteRequested = false;
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
-                        mResponse.setText(Util.bytesToHexString(responseData).trim());
+                        mResponse.setText(new String(responseData).trim());
                     } else {
                         Log.w(TAG, "Response data is null.");
                     }
@@ -187,13 +178,19 @@ public class DeviceControlActivity extends Activity {
                     isReadRequested = false;
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
-                        mResponse.setText(Util.bytesToHexString(responseData).trim());
+                        mResponse.setText(new String(responseData).trim());
                     } else {
                         Log.w(TAG, "Response data is null.");
                     }
                 }
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
+                byte[] notifiedData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
+                if (notifiedData != null) {
+                    mResponse.setText(new String(notifiedData).trim());
+                } else {
+                    Log.w(TAG, "Response data is null.");
+                }
             }
         }
     };
@@ -216,23 +213,38 @@ public class DeviceControlActivity extends Activity {
 
         // Look for default service
         for (BluetoothGattService gattService : gattServices) {
+            clearCharacteristicSetup();
+
             // MSP430 launchpad
             if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_MSP430_SERVICE_UUID)) {
                 if (bluetoothLookup(gattService, DEFAULT_MSP430_SERVICE_UUID, DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
                         DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID, DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID)) {
                     Log.i(TAG, "Finished setting up for MSP430.");
-                    break;
+                    return;
+                } else {
+                    clearCharacteristicSetup();
                 }
             }
             // The other one
-            if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_GRAPH_SERVICE_UUID)) {
-                if (bluetoothLookup(gattService, DEFAULT_GRAPH_SERVICE_UUID, GraphActivity.DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
+            if (gattService.getUuid().toString().equalsIgnoreCase(GraphActivity.DEFAULT_GRAPH_SERVICE_UUID)) {
+                if (bluetoothLookup(gattService, GraphActivity.DEFAULT_GRAPH_SERVICE_UUID, GraphActivity.DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
                         GraphActivity.DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID, GraphActivity.DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID)) {
                     Log.i(TAG, "Launchpad is setup for graph activity only.");
-                    break;
+                    return;
+                } else {
+                    clearCharacteristicSetup();
                 }
             }
         }
+        Log.w(TAG, "Bluetooth configuration is not setup.");
+        Toast.makeText(this, "Bluetooth configuration could not be setup.", Toast.LENGTH_LONG).show();
+        finish();
+    }
+
+    private void clearCharacteristicSetup() {
+        mReadCharacteristic = null;
+        mWriteCharacteristic = null;
+        mNotifyCharacteristic = null;
     }
 
     private boolean bluetoothLookup(BluetoothGattService gattService, String serviceUuid, String readCharacteristicUuid,
@@ -250,18 +262,16 @@ public class DeviceControlActivity extends Activity {
                 }
             }
             if (uuid.toString().equalsIgnoreCase((writeCharacteristicUuid)) && Util.isCharacteristicWritable(characteristic)) {
-                Log.d(TAG, "Setup characteristic write" + uuid.substring(4, 8));
+                Log.d(TAG, "Setup characteristic write " + uuid.substring(4, 8));
                 mWriteCharacteristic = characteristic;
             }
-            /*
             if (uuid.toString().equalsIgnoreCase(notifyCharacteristicUuid) && Util.isCharacteristicNotifiable(characteristic)) {
-                Log.d(TAG, "Setup characteristic notify" + uuid.substring(4, 8));
+                Log.d(TAG, "Setup characteristic notify " + uuid.substring(4, 8));
                 mNotifyCharacteristic = characteristic;
                 mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, true);
             }
-            */
         }
-        return (mReadCharacteristic == null || mWriteCharacteristic == null || mNotifyCharacteristic == null);
+        return (mReadCharacteristic != null && mWriteCharacteristic != null);
     }
 
     /**
@@ -298,6 +308,24 @@ public class DeviceControlActivity extends Activity {
         // Inflate control view
         setContentView(R.layout.activity_device_control);
 
+        // Inject views
+        mResponse = (TextView) findViewById(R.id.tv_response);
+        mLastInstruction = (TextView) findViewById(R.id.tv_last_command);
+        mReadButton = (Button) findViewById(R.id.btn_read);
+        mGetButton = (Button) findViewById(R.id.btn_get);
+        mGetPinEditText = (EditText) findViewById(R.id.et_get_pin);
+        mGraphCheckBox = (CheckBox) findViewById(R.id.checkbox_graph);
+        mPutButton = (Button) findViewById(R.id.btn_put);
+        mPutPinEditText = (EditText) findViewById(R.id.et_put_pin);
+        mPutValEditText = (EditText) findViewById(R.id.et_put_value);
+        mSleepButton = (Button) findViewById(R.id.btn_sleep);
+        mSleepDurationEditText = (EditText) findViewById(R.id.et_sleep_ms);
+        mIfOperatorButton = (Button) findViewById(R.id.btn_if_operator);
+        mIfButton = (Button) findViewById(R.id.btn_if);
+        mEndIfButton = (Button) findViewById(R.id.btn_endif);
+        mIfLhsEditText = (EditText) findViewById(R.id.et_if_lhs);
+        mIfRhsEditText = (EditText) findViewById(R.id.et_if_rhs);
+
         // Set listeners for buttons
         mReadButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -306,8 +334,13 @@ public class DeviceControlActivity extends Activity {
                     Log.w(TAG, "BluetoothLeService == null");
                     return;
                 }
+                if (mReadCharacteristic == null) {
+                    Log.w(TAG, "Bluetooth configuration is not setup properly.");
+                    return;
+                }
+
                 isReadRequested = true;
-                mBluetoothLeService.readCharacteristic();
+                mBluetoothLeService.readCharacteristic(mReadCharacteristic);
             }
         });
         mGetButton.setOnClickListener(new View.OnClickListener() {
@@ -315,12 +348,19 @@ public class DeviceControlActivity extends Activity {
             public void onClick(View v) {
                 if (mGraphCheckBox != null) {
                     // no try-catch needed since the input is restricted to numbers.
-                    mPinNumber = Integer.parseInt(mGetPinEditText.getText().toString());
+                    String num = mGetPinEditText.getText().toString().trim();
+                    if (num.length() > 0) {
+                        mPinNumber = Integer.parseInt(num);
+                    } else {
+                        Log.w(TAG, "Invalid pin number");
+                        return;
+                    }
                     String instruction = GET_INSTRUCTION + mPinNumber + "\n";
                     if (mGraphCheckBox.isChecked()) {
                         // Open graph page to display 4K data.
                         Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
                         intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
+                        intent.putExtra(EXTRAS_CONNECTION_METHOD, mConnectionMethod);
                         startActivity(intent);
                     } else {
                         // Request once
@@ -332,9 +372,20 @@ public class DeviceControlActivity extends Activity {
         mPutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                // no try-catch needed since the input is restricted to numbers.
-                mPinNumber = Integer.parseInt(mPutPinEditText.getText().toString());
-                mPinValue = Integer.parseInt(mPutValEditText.getText().toString());
+                String num = mPutPinEditText.getText().toString().trim();
+                if (num.length() > 0) {
+                    mPinNumber = Integer.parseInt(num);
+                } else {
+                    Log.w(TAG, "Invalid pin number");
+                    return;
+                }
+                String val = mPutValEditText.getText().toString().trim();
+                if (val.length() > 0) {
+                    mPinValue = Integer.parseInt(val);
+                } else {
+                    Log.w(TAG, "Invalid pin value");
+                    return;
+                }
                 sendInstruction(PUT_INSTRUCTION + mPinNumber + " " + mPinValue + "\n");
             }
         });
@@ -342,8 +393,57 @@ public class DeviceControlActivity extends Activity {
             @Override
             public void onClick(View v) {
                 // no try-catch needed since the input is restricted to numbers.
-                mSleepDuration = Integer.parseInt(mSleepDurationEditText.getText().toString());
-                sendInstruction(SLEEP_INSTRUCTION + mSleepDuration + "\n");
+                String sleepDuration = mSleepDurationEditText.getText().toString().trim();
+                if (sleepDuration.length() > 0) {
+                    mSleepDuration = Integer.parseInt(sleepDuration);
+                    sendInstruction(SLEEP_INSTRUCTION + mSleepDuration + "\n");
+                } else {
+                    Log.w(TAG, "Invalid sleep duration");
+                }
+            }
+        });
+        mIfOperatorButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Button btn = (Button) v;
+                if (btn.getText().toString().equalsIgnoreCase("<")) {
+                    btn.setText("=");
+                    return;
+                }
+                if (btn.getText().toString().equalsIgnoreCase("=")) {
+                    btn.setText(">");
+                    return;
+                }
+                if (btn.getText().toString().equalsIgnoreCase(">")) {
+                    btn.setText("<");
+                    return;
+                }
+            }
+        });
+        mIfButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                String lhs = mIfLhsEditText.getText().toString().trim();
+                if (lhs.length() > 0) {
+                    mPinNumber = Integer.parseInt(lhs);
+                } else {
+                    Log.w(TAG, "Invalid pin number.");
+                    return;
+                }
+                String rhs = mIfRhsEditText.getText().toString().trim();
+                if (rhs.length() > 0) {
+                    mPinValue = Integer.parseInt(rhs);
+                } else {
+                    Log.w(TAG, "Invalid pin number.");
+                    return;
+                }
+                sendInstruction(IF_INSTRUCTION + mPinNumber + " " + mIfOperatorButton.getText().toString().trim() + " " + mPinValue + "\n");
+            }
+        });
+        mEndIfButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                sendInstruction(ENDIF_INSTRUCTION + "\n");
             }
         });
     }
@@ -380,15 +480,17 @@ public class DeviceControlActivity extends Activity {
             Log.e(TAG, "Connection method not specified.");
             finish();
         }
-
+        Log.d(TAG, "instruction to send = " + instruction);
         if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
             if (mBluetoothLeService == null) {
                 Log.w(TAG, "BluetoothLeService == null");
                 return;
             }
+
             isWriteRequested = true;
             mLastInstruction.setText(instruction.trim());
-            mBluetoothLeService.writeCharacteristic(instruction);
+            mWriteCharacteristic.setValue(instruction);
+            mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
 
         } else if (mConnectionMethod.equalsIgnoreCase(WIFI_METHOD)) {
             mLastInstruction.setText(instruction.trim());

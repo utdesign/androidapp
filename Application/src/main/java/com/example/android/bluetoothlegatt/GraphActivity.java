@@ -53,6 +53,7 @@ public class GraphActivity extends Activity {
     private String mDeviceAddress;
     private String mDeviceName;
     private String mGetInstruction;
+    private String mConnectionMethod;
     private BluetoothLeService mBluetoothLeService;
     private BluetoothGattCharacteristic mReadCharacteristic;
     private BluetoothGattCharacteristic mWriteCharacteristic;
@@ -220,6 +221,12 @@ public class GraphActivity extends Activity {
             Log.d(TAG, "No get instruction");
             finish();
         }
+        if (intent.hasExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD)) {
+            mConnectionMethod = intent.getStringExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD);
+        } else {
+            Log.d(TAG, "No connection method");
+            finish();
+        }
 
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
                 WindowManager.LayoutParams.FLAG_FULLSCREEN);
@@ -231,12 +238,15 @@ public class GraphActivity extends Activity {
             Log.w(TAG, "NullPointerException when trying to getActionBar().");
         }
 
-        // Bind BluetoothLeService to this activity
-        Log.d(TAG, "binding");
-        Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
-        bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-
         setProgressBar();
+        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+            // Bind BluetoothLeService to this activity
+            Log.d(TAG, "binding");
+            Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+            bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+        } else if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.WIFI_METHOD)) {
+            // send get request
+        }
     }
 
     @Override
@@ -269,25 +279,32 @@ public class GraphActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        registerReceiver(mGattUpdateReceiver, DeviceControlActivity.makeGattUpdateIntentFilter());
-        if (mBluetoothLeService != null) {
-            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-            Log.d(TAG, "Connect request result = " + result);
+        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+            registerReceiver(mGattUpdateReceiver, DeviceControlActivity.makeGattUpdateIntentFilter());
+            if (mBluetoothLeService != null) {
+                final boolean result = mBluetoothLeService.connect(mDeviceAddress);
+                Log.d(TAG, "Connect request result = " + result);
+            }
         }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
-        unregisterReceiver(mGattUpdateReceiver);
+
+        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+            unregisterReceiver(mGattUpdateReceiver);
+        }
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
 
-        unbindService(mServiceConnection);
-        mBluetoothLeService = null;
+        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+            unbindService(mServiceConnection);
+            mBluetoothLeService = null;
+        }
     }
 
     private void startCollectingData() {
