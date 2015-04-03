@@ -203,6 +203,7 @@ public class GraphActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setProgressBar();
 
         final Intent intent = getIntent();
         if (intent.hasExtra(EXTRAS_DEVICE_NAME)) {
@@ -241,7 +242,6 @@ public class GraphActivity extends Activity {
             Log.w(TAG, "NullPointerException when trying to getActionBar().");
         }
 
-        setProgressBar();
         if (isBluetoothConnection) {
             // Bind BluetoothLeService to this activity
             Log.d(TAG, "binding");
@@ -329,6 +329,11 @@ public class GraphActivity extends Activity {
         mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
     }
 
+    /**
+     * Setup {@link com.example.android.bluetoothlegatt.BluetoothLeService} by specifying default
+     * {@link android.bluetooth.BluetoothGattService} and read, write, notify {@link android.bluetooth.BluetoothGattCharacteristic}.
+     * Called only if the device connects to launchpad via Bluetooth.
+     */
     private void setupBluetooth() {
         if (mBluetoothLeService == null) {
             Log.w(TAG, "no BLE service in background");
@@ -342,37 +347,65 @@ public class GraphActivity extends Activity {
 
         // Look for default service
         for (BluetoothGattService gattService : gattServices) {
+            clearCharacteristicSetup();
 
-            if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_GRAPH_SERVICE_UUID)) {
-                Log.i(TAG, "GATT Service found");
-                // Look for characteristics to read and write
-                for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
-                    final String uuid = characteristic.getUuid().toString();
-                    if (uuid.equalsIgnoreCase(DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID) && Util.isCharacteristicReadable(characteristic)) {
-                        Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
-                        mReadCharacteristic = characteristic;
-                        // If there is an active notification on a characteristic, clear
-                        // it first so it doesn't update the data field on the user interface.
-                        if (mNotifyCharacteristic != null) {
-                            mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, false);
-                            mNotifyCharacteristic = null;
-                        }
-                    }
-                    if (uuid.equalsIgnoreCase((DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID)) && Util.isCharacteristicWritable(characteristic)) {
-                        Log.d(TAG, "Setup characteristic write" + uuid.substring(4, 8));
-                        mWriteCharacteristic = characteristic;
-                    }
-                    if (uuid.equalsIgnoreCase(DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID) && Util.isCharacteristicNotifiable(characteristic)) {
-                        Log.d(TAG, "Setup characteristic notify" + uuid.substring(4, 8));
-                        mNotifyCharacteristic = characteristic;
-                        mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, true);
-                    }
+            // MSP430 launchpad
+            if (gattService.getUuid().toString().equalsIgnoreCase(DeviceControlActivity.DEFAULT_MSP430_SERVICE_UUID)) {
+                if (bluetoothLookup(gattService, DeviceControlActivity.DEFAULT_MSP430_SERVICE_UUID, DeviceControlActivity.DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
+                        DeviceControlActivity.DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID, DeviceControlActivity.DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID)) {
+                    Log.i(TAG, "Finished setting up for MSP430.");
+                    return;
+                } else {
+                    clearCharacteristicSetup();
                 }
-
-                startCollectingData();
-                break;
+            }
+            // The other one
+            if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_GRAPH_SERVICE_UUID)) {
+                if (bluetoothLookup(gattService, DEFAULT_GRAPH_SERVICE_UUID, DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
+                        DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID, DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID)) {
+                    Log.i(TAG, "Launchpad is setup for graph activity only.");
+                    return;
+                } else {
+                    clearCharacteristicSetup();
+                }
             }
         }
+        Log.w(TAG, "Bluetooth configuration is not setup.");
+        Toast.makeText(this, "Bluetooth configuration could not be setup.", Toast.LENGTH_LONG).show();
+        finish();
+    }
+
+    private void clearCharacteristicSetup() {
+        mReadCharacteristic = null;
+        mWriteCharacteristic = null;
+        mNotifyCharacteristic = null;
+    }
+
+    private boolean bluetoothLookup(BluetoothGattService gattService, String serviceUuid, String readCharacteristicUuid,
+                                    String writeCharacteristicUuid, String notifyCharacteristicUuid) {
+        for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
+            final String uuid = characteristic.getUuid().toString();
+            if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
+                Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
+                mReadCharacteristic = characteristic;
+                // If there is an active notification on a characteristic, clear
+                // it first so it doesn't update the data field on the user interface.
+                if (mNotifyCharacteristic != null) {
+                    mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, false);
+                    mNotifyCharacteristic = null;
+                }
+            }
+            if (uuid.toString().equalsIgnoreCase((writeCharacteristicUuid)) && Util.isCharacteristicWritable(characteristic)) {
+                Log.d(TAG, "Setup characteristic write " + uuid.substring(4, 8));
+                mWriteCharacteristic = characteristic;
+            }
+            if (uuid.toString().equalsIgnoreCase(notifyCharacteristicUuid) && Util.isCharacteristicNotifiable(characteristic)) {
+                Log.d(TAG, "Setup characteristic notify " + uuid.substring(4, 8));
+                mNotifyCharacteristic = characteristic;
+                mBluetoothLeService.setCharacteristicNotification(mNotifyCharacteristic, true);
+            }
+        }
+        return (mReadCharacteristic != null && mWriteCharacteristic != null);
     }
 
     private void draw() {

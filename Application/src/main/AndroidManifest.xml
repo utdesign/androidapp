@@ -64,10 +64,18 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-            <meta-data android:name="android.support.UI_OPTIONS"
+            <meta-data
+                android:name="android.support.UI_OPTIONS"
                 android:value="splitActionBarWhenNarrow" />
         </activity>
-        <activity android:name=".DeviceControlActivity" />
+        <activity
+            android:name=".DeviceControlActivity"
+            android:parentActivityName=".DeviceScanActivity">
+            <!-- Parent activity meta-data to support 4.0 and lower -->
+            <meta-data
+                android:name="android.support.PARENT_ACTIVITY"
+                android:value=".DeviceScanActivity" />
+        </activity>
         <activity
             android:name=".GraphActivity"
             android:label="@string/title_activity_graph"

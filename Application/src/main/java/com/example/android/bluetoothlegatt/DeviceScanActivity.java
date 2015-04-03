@@ -37,7 +37,7 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     private static final String TAG = DeviceScanActivity.class.getSimpleName();
     private static final int INDICATOR_COLOR = R.color.orange;
     public static final int REQUEST_ENABLE_BT = 1;
-    private static final long SCAN_PERIOD = 10000;
+    private static final long SCAN_PERIOD = 5000;
 
     private boolean mScanning;
     private String mConnectionMethod = DeviceControlActivity.BLUETOOTH_METHOD;
@@ -65,20 +65,19 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
         if (state == ViewPager.SCROLL_STATE_IDLE) {
             if (mCurrentTab != mViewPager.getCurrentItem()) {
                 mCurrentTab = mViewPager.getCurrentItem();
-                onTabChanged(mViewPager.getCurrentItem());
+                onTabChanged();
             }
         }
     }
 
-    private void onTabChanged(int position) {
-        Log.d(TAG, "tab position = " + position);
-        mConnectionMethod = DeviceScanPagerAdapter.TITLES[position];
-        if (position == 0) {
+    private void onTabChanged() {
+        mConnectionMethod = DeviceScanPagerAdapter.TITLES[mCurrentTab];
+        if (mCurrentTab == 0) {
             scanWifiDevice(false); // stop Wifi scan
             scanLeDevice(true); // start Ble scan
-        } else if (position == 1) {
+        } else if (mCurrentTab == 1) {
             scanLeDevice(false); // stop Ble scan
-            ((WifiScanCallback) mPagerAdapter.getCurrentItem(position)).onScan(); // start Wifi scan
+            ((WifiScanCallback) mPagerAdapter.getCurrentItem(mCurrentTab)).onScan(); // start Wifi scan
         }
     }
 
@@ -127,16 +126,12 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
         if (!Util.hasBleSupport(this)) {
             Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
             return;
-        } else {
-            Log.i(TAG, "BLE supported.");
         }
 
         mBluetoothAdapter = Util.getBluetoothAdapter(this);
         if (mBluetoothAdapter == null) {
             Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
             return;
-        } else {
-            Log.i(TAG, "Bluetooth supported");
         }
     }
 

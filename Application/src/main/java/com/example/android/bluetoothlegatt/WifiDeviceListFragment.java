@@ -50,7 +50,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
         WifiDevice device = mListAdapter.getDevice(position);
         if (device == null) return;
 
-        final Intent intent = new Intent(getActivity(), DeviceControlActivity.class);
+        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
         intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.WIFI_METHOD);
@@ -219,6 +219,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
         public void addDevice(WifiDevice device) {
             if (!mLeDevices.contains(device)) {
                 mLeDevices.add(device);
+                notifyDataSetChanged();
             }
         }
 

@@ -35,7 +35,7 @@ public class LeDeviceListFragment extends ListFragment implements DeviceScanActi
         BluetoothDevice device = mListAdapter.getDevice(position);
         if (device == null) return;
 
-        final Intent intent = new Intent(getActivity(), DeviceControlActivity.class);
+        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
         intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
         intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.BLUETOOTH_METHOD);
@@ -137,6 +137,7 @@ public class LeDeviceListFragment extends ListFragment implements DeviceScanActi
             if (!mLeDevices.contains(device)) {
                 mLeDevices.add(device);
                 notifyDataSetChanged();
+                Log.d(TAG, "new item added. notify data set.");
             }
         }
 

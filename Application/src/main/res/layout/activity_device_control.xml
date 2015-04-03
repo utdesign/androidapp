@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Copyright (C) 2013 The Android Open Source Project
+<?xml version="1.0" encoding="utf-8"?><!-- Copyright (C) 2013 The Android Open Source Project
 
      Licensed under the Apache License, Version 2.0 (the "License");
      you may not use this file except in compliance with the License.
@@ -56,21 +55,11 @@
         android:ems="22" />
 
     <!-- First Line: Read - Write - Do -->
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="NO DATE PRESENT"
-        android:layout_marginTop="@dimen/margin_small"
-        android:paddingTop="@dimen/margin_medium"
-        android:paddingBottom="@dimen/margin_medium"
-        android:gravity="center_horizontal"
-        android:textStyle="bold"
-        android:ems="16" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/margin_medium"
+        android:layout_marginTop="@dimen/margin_huge"
         android:orientation="horizontal">
 
         <Button
@@ -131,7 +120,7 @@
             android:layout_marginLeft="@dimen/margin_large"
             android:checked="false"
             android:ems="14"
-            android:text="@string/cb_graph"/>
+            android:text="@string/cb_graph" />
     </LinearLayout>
 
     <!-- Third Line: Put -->

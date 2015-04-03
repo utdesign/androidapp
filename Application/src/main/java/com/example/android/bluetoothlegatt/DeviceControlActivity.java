@@ -58,6 +58,7 @@ import java.util.List;
 public class DeviceControlActivity extends Activity {
     private static final String TAG = DeviceControlActivity.class.getSimpleName();
 
+    public static final String NO_DATA_PRESENT = "NO DATA PRESENT";
     // General Configuration for Page.
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
@@ -171,7 +172,11 @@ public class DeviceControlActivity extends Activity {
                     isWriteRequested = false;
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
-                        mResponse.setText(new String(responseData).trim());
+                        String writeResponse = new String(responseData).trim();
+                        if (!mLastInstruction.getText().toString().trim().equalsIgnoreCase(writeResponse)) {
+                            Toast.makeText(DeviceControlActivity.this, "write request and response do not match.",
+                                    Toast.LENGTH_LONG).show();
+                        }
                     } else {
                         Log.w(TAG, "Response data is null.");
                     }
@@ -182,7 +187,11 @@ public class DeviceControlActivity extends Activity {
                     isReadRequested = false;
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
-                        mResponse.setText(new String(responseData).trim());
+                        String responseText = new String(responseData).trim();
+                        if (responseText.length() == 0) {
+                            responseText = NO_DATA_PRESENT;
+                        }
+                        mResponse.setText(responseText);
                     } else {
                         Log.w(TAG, "Response data is null.");
                     }
@@ -191,7 +200,13 @@ public class DeviceControlActivity extends Activity {
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                 byte[] notifiedData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 if (notifiedData != null) {
-                    mResponse.setText(new String(notifiedData).trim());
+                    String notifiedText = new String(notifiedData).trim();
+                    if (notifiedText.length() == 0) {
+                        notifiedText = NO_DATA_PRESENT;
+                    } else {
+                        // Handle incoming data
+                    }
+                    mResponse.setText(notifiedText);
                 } else {
                     Log.w(TAG, "Response data is null.");
                 }
@@ -361,11 +376,7 @@ public class DeviceControlActivity extends Activity {
                     }
                     String instruction = GET_INSTRUCTION + mPinNumber + "\n";
                     if (mGraphCheckBox.isChecked()) {
-                        // Open graph page to display 4K data.
-                        Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
-                        intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
-                        intent.putExtra(EXTRAS_CONNECTION_METHOD, isBluetoothConnection);
-                        startActivity(intent);
+                        openGraphActivity(instruction);
                     } else {
                         // Request once
                         sendInstruction(instruction);
@@ -452,6 +463,20 @@ public class DeviceControlActivity extends Activity {
         });
     }
 
+    private void openGraphActivity(String instruction) {
+        // Open graph page to display 4K data.
+        Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
+        intent.putExtra(EXTRAS_DEVICE_NAME, mDeviceName);
+        intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
+        intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
+        if (isBluetoothConnection) {
+            intent.putExtra(EXTRAS_CONNECTION_METHOD, BLUETOOTH_METHOD);
+        } else {
+            intent.putExtra(EXTRAS_CONNECTION_METHOD, WIFI_METHOD);
+        }
+        startActivity(intent);
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -478,6 +503,7 @@ public class DeviceControlActivity extends Activity {
         }
         try {
             getActionBar().setTitle(mDeviceName);
+            getActionBar().setHomeButtonEnabled(true);
             getActionBar().setDisplayHomeAsUpEnabled(true);
         } catch (NullPointerException e) {
             Log.w(TAG, "NullPointerException when trying to getActionBar().");
@@ -496,7 +522,6 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void sendInstruction(String instruction) {
-        Log.d(TAG, "instruction to send = " + instruction);
         if (isBluetoothConnection) {
             if (mBluetoothLeService == null) {
                 Log.w(TAG, "BluetoothLeService == null");
@@ -577,12 +602,6 @@ public class DeviceControlActivity extends Activity {
 
         if (isBluetoothConnection) {
             unregisterReceiver(mGattUpdateReceiver);
-        }
-    }
-
-    private void displayData(String data) {
-        if (data != null) {
-            mResponse.setText(data);
         }
     }
 
