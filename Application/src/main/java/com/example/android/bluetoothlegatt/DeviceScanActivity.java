@@ -49,6 +49,7 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     private WifiScanCallback mWifiCallback;
 
     private ViewPager mViewPager;
+    private int mCurrentTab;
     private PagerSlidingTabStrip mTabs;
 
     @Override
@@ -62,7 +63,10 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     @Override
     public void onPageScrollStateChanged(int state) {
         if (state == ViewPager.SCROLL_STATE_IDLE) {
-            onTabChanged(mViewPager.getCurrentItem());
+            if (mCurrentTab != mViewPager.getCurrentItem()) {
+                mCurrentTab = mViewPager.getCurrentItem();
+                onTabChanged(mViewPager.getCurrentItem());
+            }
         }
     }
 
@@ -116,6 +120,7 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
                 .getDisplayMetrics());
         mViewPager.setPageMargin(pageMargin);
         mTabs.setViewPager(mViewPager);
+        mCurrentTab = 0;
 
         // Use this check to determine whether BLE is supported on the device.  Then you can
         // selectively disable BLE-related features.

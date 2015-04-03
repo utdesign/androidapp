@@ -38,12 +38,16 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.Request;
 import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.JsonRequest;
-import com.android.volley.toolbox.StringRequest;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
 import com.android.volley.toolbox.Volley;
 import com.jpardogo.android.googleprogressbar.library.FoldingCirclesDrawable;
 
+import org.json.JSONObject;
+
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -76,7 +80,7 @@ public class DeviceControlActivity extends Activity {
 
     private String mDeviceName;
     private String mDeviceAddress;
-    private String mConnectionMethod;
+    private boolean isBluetoothConnection;
 
     // Bluetooth Gatt Elements
     private BluetoothLeService mBluetoothLeService;
@@ -360,7 +364,7 @@ public class DeviceControlActivity extends Activity {
                         // Open graph page to display 4K data.
                         Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
                         intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
-                        intent.putExtra(EXTRAS_CONNECTION_METHOD, mConnectionMethod);
+                        intent.putExtra(EXTRAS_CONNECTION_METHOD, isBluetoothConnection);
                         startActivity(intent);
                     } else {
                         // Request once
@@ -453,9 +457,25 @@ public class DeviceControlActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         final Intent intent = getIntent();
-        mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
-        mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
-        mConnectionMethod = intent.getStringExtra(EXTRAS_CONNECTION_METHOD);
+        if (intent.hasExtra(EXTRAS_DEVICE_NAME)) {
+            mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
+        } else {
+            Log.d(TAG, "No device name");
+            finish();
+        }
+        if (intent.hasExtra(EXTRAS_DEVICE_ADDRESS)) {
+            mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        } else {
+            Log.d(TAG, "No device address");
+            finish();
+        }
+        if (intent.hasExtra(EXTRAS_CONNECTION_METHOD)) {
+            String connectionMethod = intent.getStringExtra(EXTRAS_CONNECTION_METHOD);
+            isBluetoothConnection = connectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD);
+        } else {
+            Log.d(TAG, "No connection method.");
+            finish();
+        }
         try {
             getActionBar().setTitle(mDeviceName);
             getActionBar().setDisplayHomeAsUpEnabled(true);
@@ -463,25 +483,21 @@ public class DeviceControlActivity extends Activity {
             Log.w(TAG, "NullPointerException when trying to getActionBar().");
         }
 
-        if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             // Bind BluetoothLeService to this activity
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
             bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
             setProgressBar();
-        } else if (mConnectionMethod.equalsIgnoreCase(WIFI_METHOD)) {
+        } else {
             mRequestQueue = Volley.newRequestQueue(this);
             setControlView();
         }
     }
 
     private void sendInstruction(String instruction) {
-        if (mConnectionMethod == null) {
-            Log.e(TAG, "Connection method not specified.");
-            finish();
-        }
         Log.d(TAG, "instruction to send = " + instruction);
-        if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             if (mBluetoothLeService == null) {
                 Log.w(TAG, "BluetoothLeService == null");
                 return;
@@ -492,10 +508,28 @@ public class DeviceControlActivity extends Activity {
             mWriteCharacteristic.setValue(instruction);
             mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
 
-        } else if (mConnectionMethod.equalsIgnoreCase(WIFI_METHOD)) {
+        } else {
             mLastInstruction.setText(instruction.trim());
             isWriteRequested = true;
+            invalidateOptionsMenu();
+
+            // TODO: send wifi request
             // Volley request
+            String url = null;
+            HashMap<String, String> params = new HashMap<>();
+            params.put("command", instruction);
+            CustomRequest request = new CustomRequest(Request.Method.POST, url, params, new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+
+                }
+            }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    isWriteRequested = false;
+                }
+            });
+            mRequestQueue.add(request);
         }
     }
 
@@ -528,7 +562,7 @@ public class DeviceControlActivity extends Activity {
     protected void onResume() {
         super.onResume();
 
-        if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
@@ -541,7 +575,7 @@ public class DeviceControlActivity extends Activity {
     protected void onPause() {
         super.onPause();
 
-        if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             unregisterReceiver(mGattUpdateReceiver);
         }
     }
@@ -567,9 +601,11 @@ public class DeviceControlActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (mConnectionMethod.equalsIgnoreCase(BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
+        } else {
+            mRequestQueue.cancelAll(TAG);
         }
     }
 }

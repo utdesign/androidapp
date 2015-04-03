@@ -8,11 +8,8 @@ import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.graphics.Color;
-import android.media.AudioManager;
-import android.media.ToneGenerator;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -22,6 +19,7 @@ import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.android.volley.RequestQueue;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
@@ -40,7 +38,7 @@ public class GraphActivity extends Activity {
 
     private static final boolean NO_DATA = false;
     public static final int WRITE_VALUE = 0x5E;
-    public static final int NUMBER_OF_WRITE_OPERATIONS = 20;
+    public static final int MESSAGE_PACKAGE_SIZE = 20;
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
     public static final String EXTRAS_GET_INSTRUCTION = "GET_INSTRUCTION";
@@ -53,11 +51,14 @@ public class GraphActivity extends Activity {
     private String mDeviceAddress;
     private String mDeviceName;
     private String mGetInstruction;
-    private String mConnectionMethod;
+    private boolean isBluetoothConnection;
+
     private BluetoothLeService mBluetoothLeService;
     private BluetoothGattCharacteristic mReadCharacteristic;
     private BluetoothGattCharacteristic mWriteCharacteristic;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
+
+    private RequestQueue mRequestQueue;
 
     private int mExpectedPackageNumber = 0;
     private LineChart mChart;
@@ -75,6 +76,7 @@ public class GraphActivity extends Activity {
             if (!mBluetoothLeService.initialize()) {
                 Log.e(TAG, "Unable to initialize Bluetooth");
 
+                // Back to the Scan page.
                 startActivity(new Intent(GraphActivity.this, DeviceScanActivity.class));
             }
             // Automatically connects to the device upon successful start-up initialization.
@@ -135,7 +137,7 @@ public class GraphActivity extends Activity {
                 if (mBluetoothLeService == null || mReadCharacteristic == null) {
                     return;
                 }
-                if (mExpectedPackageNumber < NUMBER_OF_WRITE_OPERATIONS) {
+                if (mExpectedPackageNumber < MESSAGE_PACKAGE_SIZE) {
                     mBluetoothLeService.readCharacteristic(mReadCharacteristic);
                 } else {
                     // Draw graph after read all data
@@ -222,7 +224,8 @@ public class GraphActivity extends Activity {
             finish();
         }
         if (intent.hasExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD)) {
-            mConnectionMethod = intent.getStringExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD);
+            String connectionMethod = intent.getStringExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD);
+            isBluetoothConnection = connectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD);
         } else {
             Log.d(TAG, "No connection method");
             finish();
@@ -239,12 +242,12 @@ public class GraphActivity extends Activity {
         }
 
         setProgressBar();
-        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             // Bind BluetoothLeService to this activity
             Log.d(TAG, "binding");
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
             bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
-        } else if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.WIFI_METHOD)) {
+        } else {
             // send get request
         }
     }
@@ -262,8 +265,6 @@ public class GraphActivity extends Activity {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-
-        // noinspection SimplifiableIfStatement
         if (id == R.id.action_quit) {
             finish();
             return true;
@@ -279,7 +280,7 @@ public class GraphActivity extends Activity {
     public void onResume() {
         super.onResume();
 
-        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             registerReceiver(mGattUpdateReceiver, DeviceControlActivity.makeGattUpdateIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
@@ -292,7 +293,7 @@ public class GraphActivity extends Activity {
     protected void onPause() {
         super.onPause();
 
-        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             unregisterReceiver(mGattUpdateReceiver);
         }
     }
@@ -301,9 +302,11 @@ public class GraphActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
 
-        if (mConnectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
+        if (isBluetoothConnection) {
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
+        } else {
+            mRequestQueue.cancelAll(TAG);
         }
     }
 
