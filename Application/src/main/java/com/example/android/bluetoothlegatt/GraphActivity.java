@@ -31,6 +31,7 @@ import com.jpardogo.android.googleprogressbar.library.FoldingCirclesDrawable;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 
 public class GraphActivity extends Activity {
@@ -102,16 +103,15 @@ public class GraphActivity extends Activity {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 Log.i(TAG, "device connected");
+
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 Toast.makeText(GraphActivity.this, "Device disconnected!", Toast.LENGTH_SHORT).show();
-//                ToneGenerator toneG = new ToneGenerator(AudioManager.STREAM_ALARM, 100);
-//                toneG.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 200);
-//                finish();
+
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
-                Log.d(TAG, "services discovered");
                 // Setup the default characteristics to read, write, and notify
                 // ALso, send a command to start receiving serial data
                 setupBluetooth();
+
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                 // Start populating data
                 byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
@@ -144,6 +144,7 @@ public class GraphActivity extends Activity {
                     setGraphView();
                     draw();
                 }
+
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE.equals(action)) {
                 byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 Log.i(TAG, "write data = " + Util.bytesToHexString(data));
@@ -155,9 +156,9 @@ public class GraphActivity extends Activity {
                 if (mBluetoothLeService == null || mReadCharacteristic == null) {
                     return;
                 }
-
                 // Start reading data
                 mBluetoothLeService.readCharacteristic(mReadCharacteristic);
+
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                 byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 Log.i(TAG, "notified data = " + Util.bytesToHexString(data));
@@ -167,7 +168,9 @@ public class GraphActivity extends Activity {
 
     private void setProgressBar() {
         setContentView(R.layout.google_progress_bar);
-        mProgressBar = (ProgressBar) findViewById(R.id.google_progress);
+        if (mProgressBar == null) {
+            mProgressBar = (ProgressBar) findViewById(R.id.google_progress);
+        }
         mProgressBar.setIndeterminateDrawable(new FoldingCirclesDrawable.Builder(this).
                 colors(getProgressDrawableColors()).build());
     }
@@ -239,12 +242,11 @@ public class GraphActivity extends Activity {
             actionBar.setDisplayHomeAsUpEnabled(true);
             actionBar.setTitle(mDeviceName);
         } catch (NullPointerException e) {
-            Log.w(TAG, "NullPointerException when trying to getActionBar().");
+            Log.w(TAG, "NullPointerException when trying to action bar.");
         }
 
         if (isBluetoothConnection) {
             // Bind BluetoothLeService to this activity
-            Log.d(TAG, "binding");
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
             bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
         } else {
@@ -266,6 +268,7 @@ public class GraphActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_quit) {
+            mBluetoothLeService.disconnect();
             finish();
             return true;
         }
@@ -303,6 +306,7 @@ public class GraphActivity extends Activity {
         super.onDestroy();
 
         if (isBluetoothConnection) {
+            mBluetoothLeService.disconnect();
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
         } else {

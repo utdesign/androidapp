@@ -18,6 +18,7 @@ package com.example.android.bluetoothlegatt;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -176,6 +177,7 @@ public class DeviceControlActivity extends Activity {
                         if (!mLastInstruction.getText().toString().trim().equalsIgnoreCase(writeResponse)) {
                             Toast.makeText(DeviceControlActivity.this, "write request and response do not match.",
                                     Toast.LENGTH_LONG).show();
+                            DeviceControlActivity.this.finish();
                         }
                     } else {
                         Log.w(TAG, "Response data is null.");
@@ -270,6 +272,10 @@ public class DeviceControlActivity extends Activity {
                                     String writeCharacteristicUuid, String notifyCharacteristicUuid) {
         for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
             final String uuid = characteristic.getUuid().toString();
+            List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
+            for (BluetoothGattDescriptor descriptor : descriptors) {
+                Log.d(TAG, "descriptor = " + descriptor.toString());
+            }
             if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
                 Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                 mReadCharacteristic = characteristic;
@@ -470,6 +476,7 @@ public class DeviceControlActivity extends Activity {
         intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
         intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
         if (isBluetoothConnection) {
+            mBluetoothLeService.disconnect();
             intent.putExtra(EXTRAS_CONNECTION_METHOD, BLUETOOTH_METHOD);
         } else {
             intent.putExtra(EXTRAS_CONNECTION_METHOD, WIFI_METHOD);
@@ -521,6 +528,11 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
+    /**
+     * Send instruction via determined communication channel.
+     *
+     * @param instruction Instruction to send
+     */
     private void sendInstruction(String instruction) {
         if (isBluetoothConnection) {
             if (mBluetoothLeService == null) {
