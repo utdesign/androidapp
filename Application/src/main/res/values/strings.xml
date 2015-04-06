@@ -74,7 +74,7 @@
     <string name="menu_disconnect">Disconnect</string>
     <string name="menu_scan">Scan</string>
     <string name="menu_stop">Stop</string>
-    <string name="menu_refresh">Refresh</string>
+    <string name="menu_toggle">Sample</string>
     <string name="menu_quit">Quit</string>
     <string name="menu_requesting">Requesting</string>
 

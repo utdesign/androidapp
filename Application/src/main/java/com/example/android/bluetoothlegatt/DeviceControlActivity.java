@@ -64,6 +64,7 @@ public class DeviceControlActivity extends Activity {
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
     public static final String EXTRAS_CONNECTION_METHOD = "CONNECTION_METHOD";
+    public static final String EXTRAS_BLUETOOTH_DEVICE_MSP = "BLUETOOTH_DEVICE_MSP";
     public static final String BLUETOOTH_METHOD = "BLUETOOTH";
     public static final String WIFI_METHOD = "WIFI";
 
@@ -75,6 +76,7 @@ public class DeviceControlActivity extends Activity {
 
     // List of available instructions
     public static final String GET_INSTRUCTION = "get ";
+    public static final String GET_GRAPH_INSTRUCTION = "gph ";
     public static final String PUT_INSTRUCTION = "put ";
     public static final String SLEEP_INSTRUCTION = "sleep ";
     public static final String IF_INSTRUCTION = "if ";
@@ -83,6 +85,7 @@ public class DeviceControlActivity extends Activity {
     private String mDeviceName;
     private String mDeviceAddress;
     private boolean isBluetoothConnection;
+    private boolean isMsp430;
 
     // Bluetooth Gatt Elements
     private BluetoothLeService mBluetoothLeService;
@@ -96,7 +99,6 @@ public class DeviceControlActivity extends Activity {
     private RequestQueue mRequestQueue;
 
     // Device Control Elements
-    private boolean isBluetoothConnected = false;
     private int mPinNumber;
     private int mPinValue;
     private int mSleepDuration;
@@ -153,15 +155,13 @@ public class DeviceControlActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-                isBluetoothConnected = true;
                 setControlView();
                 invalidateOptionsMenu();
 
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 // If Bluetooth service is disconnected, leave for front page
-                isBluetoothConnected = false;
                 Toast.makeText(DeviceControlActivity.this, "Gatt profile has been disconnected.", Toast.LENGTH_SHORT).show();
-                finish();
+                DeviceControlActivity.this.finish();
 
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 // Search all the supported services and characteristics on the user interface.
@@ -171,6 +171,7 @@ public class DeviceControlActivity extends Activity {
                 if (isWriteRequested) {
                     // Display write response.
                     isWriteRequested = false;
+                    invalidateOptionsMenu();
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
                         String writeResponse = new String(responseData).trim();
@@ -187,6 +188,7 @@ public class DeviceControlActivity extends Activity {
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                 if (isReadRequested) {
                     isReadRequested = false;
+                    invalidateOptionsMenu();
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     if (responseData != null) {
                         String responseText = new String(responseData).trim();
@@ -240,26 +242,26 @@ public class DeviceControlActivity extends Activity {
             if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_MSP430_SERVICE_UUID)) {
                 if (bluetoothLookup(gattService, DEFAULT_MSP430_SERVICE_UUID, DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
                         DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID, DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID)) {
-                    Log.i(TAG, "Finished setting up for MSP430.");
+                    isMsp430 = true;
                     return;
                 } else {
                     clearCharacteristicSetup();
                 }
             }
-            // The other one
-            if (gattService.getUuid().toString().equalsIgnoreCase(GraphActivity.DEFAULT_GRAPH_SERVICE_UUID)) {
+            // SimpleBlePeripheral
+            else if (gattService.getUuid().toString().equalsIgnoreCase(GraphActivity.DEFAULT_GRAPH_SERVICE_UUID)) {
                 if (bluetoothLookup(gattService, GraphActivity.DEFAULT_GRAPH_SERVICE_UUID, GraphActivity.DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
                         GraphActivity.DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID, GraphActivity.DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID)) {
-                    Log.i(TAG, "Launchpad is setup for graph activity only.");
+                    isMsp430 = false;
+                    openGraphActivity(null);
                     return;
                 } else {
                     clearCharacteristicSetup();
                 }
             }
         }
-        Log.w(TAG, "Bluetooth configuration is not setup.");
         Toast.makeText(this, "Bluetooth configuration could not be setup.", Toast.LENGTH_LONG).show();
-        finish();
+        DeviceControlActivity.this.finish();
     }
 
     private void clearCharacteristicSetup() {
@@ -380,11 +382,13 @@ public class DeviceControlActivity extends Activity {
                         Log.w(TAG, "Invalid pin number");
                         return;
                     }
-                    String instruction = GET_INSTRUCTION + mPinNumber + "\n";
+                    String instruction = null;
                     if (mGraphCheckBox.isChecked()) {
+                        instruction = GET_GRAPH_INSTRUCTION + mPinNumber + "\n";
                         openGraphActivity(instruction);
                     } else {
                         // Request once
+                        instruction = GET_INSTRUCTION + mPinNumber + "\n";
                         sendInstruction(instruction);
                     }
                 }
@@ -474,12 +478,15 @@ public class DeviceControlActivity extends Activity {
         Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
         intent.putExtra(EXTRAS_DEVICE_NAME, mDeviceName);
         intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
-        intent.putExtra(GraphActivity.EXTRAS_GET_INSTRUCTION, instruction);
         if (isBluetoothConnection) {
             mBluetoothLeService.disconnect();
             intent.putExtra(EXTRAS_CONNECTION_METHOD, BLUETOOTH_METHOD);
+            intent.putExtra(EXTRAS_BLUETOOTH_DEVICE_MSP, isMsp430);
         } else {
             intent.putExtra(EXTRAS_CONNECTION_METHOD, WIFI_METHOD);
+        }
+        if (!isBluetoothConnection || (isBluetoothConnection && isMsp430)) {
+            intent.putExtra(GraphActivity.EXTRAS_GRAPH_INSTRUCTION, instruction);
         }
         startActivity(intent);
     }
@@ -541,6 +548,7 @@ public class DeviceControlActivity extends Activity {
             }
 
             isWriteRequested = true;
+            invalidateOptionsMenu();
             mLastInstruction.setText(instruction.trim());
             mWriteCharacteristic.setValue(instruction);
             mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
@@ -574,6 +582,7 @@ public class DeviceControlActivity extends Activity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_control, menu);
+
         if (isReadRequested || isWriteRequested) {
             menu.findItem(R.id.action_requesting).setVisible(true);
             menu.findItem(R.id.action_requesting).setActionView(
