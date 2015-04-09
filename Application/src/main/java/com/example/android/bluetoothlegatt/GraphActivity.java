@@ -55,6 +55,7 @@ public class GraphActivity extends Activity {
     public static final String SAMPLE_DESCRIPTION = "Sample Number (X 2.4 = Hertz)";
     public static final String FFT_DESCRIPTION = "FFT Number (X x.x = Hertz)";
     public static final String MSP_DESCRIPTION = "PIN VALUES";
+    public static final String MSP_END_GRAPH_INSTRUCTION = "gn";
 
     private String mDeviceAddress;
     private String mDeviceName;
@@ -117,6 +118,7 @@ public class GraphActivity extends Activity {
 
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED.equals(action)) {
                 Toast.makeText(GraphActivity.this, "Device disconnected!", Toast.LENGTH_SHORT).show();
+                GraphActivity.this.finish();
                 return;
 
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
@@ -354,9 +356,7 @@ public class GraphActivity extends Activity {
         getMenuInflater().inflate(R.menu.menu_graph, menu);
 
         // This item is for Bluetooth with the SimpleBlePeripheral device only.
-        MenuItem toggle = menu.findItem(R.id.action_toggle);
-        toggle.setVisible(isBluetoothConnection && !isMsp430);
-
+        menu.findItem(R.id.action_toggle).setVisible(isBluetoothConnection && !isMsp430);
         return true;
     }
 
@@ -367,8 +367,7 @@ public class GraphActivity extends Activity {
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
         if (id == R.id.action_quit) {
-            mBluetoothLeService.disconnect();
-            finish();
+            GraphActivity.this.finish();
             return true;
 
         } else if (id == R.id.action_toggle) {
@@ -381,6 +380,7 @@ public class GraphActivity extends Activity {
             }
             item.setTitle(mode);
             startCollectingData();
+            return true;
         }
 
         return super.onOptionsItemSelected(item);
@@ -396,6 +396,8 @@ public class GraphActivity extends Activity {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
                 Log.d(TAG, "Connect request result = " + result);
             }
+        } else {
+            // Send graph instruction
         }
     }
 
@@ -404,6 +406,13 @@ public class GraphActivity extends Activity {
         super.onPause();
 
         if (isBluetoothConnection) {
+            if (isMsp430) {
+                if (mWriteCharacteristic == null || mBluetoothLeService == null) {
+                    return;
+                }
+                mWriteCharacteristic.setValue(MSP_END_GRAPH_INSTRUCTION);
+                mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
+            }
             unregisterReceiver(mGattUpdateReceiver);
         }
     }

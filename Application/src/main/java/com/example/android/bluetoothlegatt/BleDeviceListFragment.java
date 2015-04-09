@@ -69,11 +69,11 @@ public class BleDeviceListFragment extends ListFragment {
         switch (item.getItemId()) {
             case R.id.menu_scan: {
                 bleScan();
-                break;
+                return true;
             }
             case R.id.menu_stop: {
                 stopScan();
-                break;
+                return true;
             }
         }
         return super.onOptionsItemSelected(item);
