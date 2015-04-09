@@ -42,6 +42,7 @@
     <string name="btn_end_if">endif</string>
     <string name="btn_sleep">sleep</string>
     <string name="cb_graph"><u>Graph</u></string>
+    <string name="question_mark">\?</string>
 
     <!-- GATT Services -->
     <string name="generic_access_profile">Generic Access Profile</string>
@@ -78,7 +79,7 @@
     <string name="menu_quit">Quit</string>
     <string name="menu_requesting">Requesting</string>
 
-    <string name="dialog_content">Would you like to enable Wifi connection?</string>
+    <string name="dialog_content">Please check your Internet connection!</string>
     <string name="dialog_title">Wifi Enable</string>
     <string name="enable">Enable</string>
     <string name="cancel">Cancel</string>

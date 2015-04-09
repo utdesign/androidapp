@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.ListFragment;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -20,28 +21,37 @@ import java.util.ArrayList;
 /**
  * Created by quangta93 on 3/26/15.
  */
-public class LeDeviceListFragment extends ListFragment implements DeviceScanActivity.BleDeviceListFragmentCallback {
-    private static final String TAG = LeDeviceListFragment.class.getSimpleName();
+public class BleDeviceListFragment extends ListFragment {
+    private static final String TAG = BleDeviceListFragment.class.getSimpleName();
 
+    private static final long SCAN_PERIOD = 5000;
     private DeviceScanActivity mActivity;
-    private LeDeviceListAdapter mListAdapter;
+    private BleDeviceListAdapter mListAdapter;
     private BluetoothAdapter mBluetoothAdapter;
+    private Handler mHandler = new Handler();
 
-    public LeDeviceListFragment() {
-    }
+    // Device scan callback.
+    private BluetoothAdapter.LeScanCallback mLeScanCallback =
+            new BluetoothAdapter.LeScanCallback() {
 
-    @Override
-    public void onListItemClick(ListView l, View v, int position, long id) {
-        BluetoothDevice device = mListAdapter.getDevice(position);
-        if (device == null) return;
+                @Override
+                /**
+                 * @scanRecord the content of advertisement record offered by the remote device
+                 */
+                public void onLeScan(final BluetoothDevice device, int rssi, final byte[] scanRecord) {
+                    mActivity.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Log.d(TAG, "LeScanCallback: new device = " + device.getName());
+                            mListAdapter.addDevice(device);
+                            mListAdapter.notifyDataSetChanged();
+                        }
+                    });
+                }
+            };
 
-        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
-        intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.BLUETOOTH_METHOD);
-
-        mActivity.scanLeDevice(false);
-        startActivity(intent);
+    public BleDeviceListFragment() {
+        mListAdapter = new BleDeviceListAdapter();
     }
 
     @Override
@@ -56,59 +66,62 @@ public class LeDeviceListFragment extends ListFragment implements DeviceScanActi
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         Log.d(TAG, "Button pressed for " + TAG);
-        if (mActivity.getConnectionMethod().equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD)) {
-            switch (item.getItemId()) {
-                case R.id.menu_scan:
-                case R.id.menu_refresh: {
-                    scan();
-                    break;
-                }
-                case R.id.menu_stop: {
-                    mActivity.scanLeDevice(false);
-                    mListAdapter.clear();
-                    break;
-                }
+        switch (item.getItemId()) {
+            case R.id.menu_scan: {
+                bleScan();
+                break;
+            }
+            case R.id.menu_stop: {
+                stopScan();
+                break;
             }
         }
         return super.onOptionsItemSelected(item);
     }
 
-    private void scan() {
+    /**
+     * Scan for Ble devices.
+     */
+    public void bleScan() {
         if (mBluetoothAdapter == null) {
             mBluetoothAdapter = mActivity.getBluetoothAdapter();
         }
+        if (mBluetoothAdapter == null) {
+            Log.w(TAG, "Cannot get bluetooth adapter.");
+            return;
+        }
+
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBtIntent, DeviceScanActivity.REQUEST_ENABLE_BT);
         }
-        mListAdapter = new LeDeviceListAdapter();
-        setListAdapter(mListAdapter);
-        mActivity.scanLeDevice(true);
-    }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        scan();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-
-        mActivity.scanLeDevice(false);
+        Log.d(TAG, "Start LE Scan");
+        mActivity.updateOptionsMenu(true);
+        if (mListAdapter == null) {
+            mListAdapter = new BleDeviceListAdapter();
+        }
         mListAdapter.clear();
+        mHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                // Stops scanning after a pre-defined scan period.
+                mActivity.updateOptionsMenu(false);
+                mBluetoothAdapter.stopLeScan(mLeScanCallback);
+            }
+        }, SCAN_PERIOD);
+        mBluetoothAdapter.startLeScan(mLeScanCallback);
     }
 
-    @Override
-    public void onBleScanResult(BluetoothDevice device) {
-        mListAdapter.addDevice(device);
-        mListAdapter.notifyDataSetChanged();
+    public void stopScan() {
+        Log.d(TAG, "Stop LE Scan");
+        mActivity.updateOptionsMenu(false);
+        mBluetoothAdapter.stopLeScan(mLeScanCallback);
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        // User chose not to enable Bluetooth.
+        // User chooses not to enable Bluetooth.
         if (requestCode == DeviceScanActivity.REQUEST_ENABLE_BT && resultCode == Activity.RESULT_CANCELED) {
             mListAdapter.clear();
             setListAdapter(mListAdapter);
@@ -117,15 +130,28 @@ public class LeDeviceListFragment extends ListFragment implements DeviceScanActi
         super.onActivityResult(requestCode, resultCode, data);
     }
 
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+        BluetoothDevice device = mListAdapter.getDevice(position);
+        if (device == null) return;
+
+        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
+        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
+        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+        intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.BLUETOOTH_METHOD);
+        stopScan();
+        startActivity(intent);
+    }
+
     /**
      * Simple {@link android.widget.BaseAdapter} to support displaying names and addresses of scanned
      * BLE devices.
      */
-    private class LeDeviceListAdapter extends BaseAdapter {
+    private class BleDeviceListAdapter extends BaseAdapter {
         private ArrayList<BluetoothDevice> mLeDevices;
         private LayoutInflater mInflater;
 
-        public LeDeviceListAdapter() {
+        public BleDeviceListAdapter() {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
             if (getActivity() != null) {

@@ -5,8 +5,6 @@ import android.support.v4.app.FragmentManager;
 import android.support.v4.app.FragmentPagerAdapter;
 import android.view.ViewGroup;
 
-import java.util.ArrayList;
-
 /**
  * A {@link android.support.v4.view.PagerAdapter} that serves {@code Fragment}
  * Created by quangta93 on 3/23/15.
@@ -14,6 +12,8 @@ import java.util.ArrayList;
 public class DeviceScanPagerAdapter extends FragmentPagerAdapter {
     public static final String TAG = DeviceScanPagerAdapter.class.getSimpleName();
     public static final String[] TITLES = new String[]{DeviceControlActivity.BLUETOOTH_METHOD, DeviceControlActivity.WIFI_METHOD};
+    public static final int BLUETOOTH_TAB = 0;
+    public static final int WIFI_TAB = 1;
     private Fragment[] mFragments;
 
     public DeviceScanPagerAdapter(FragmentManager fm) {
@@ -29,7 +29,7 @@ public class DeviceScanPagerAdapter extends FragmentPagerAdapter {
     @Override
     public Fragment getItem(int position) {
         if (position == 0) {
-            mFragments[0] = new LeDeviceListFragment();
+            mFragments[0] = new BleDeviceListFragment();
         } else if (position == 1) {
             mFragments[1] = new WifiDeviceListFragment();
         }

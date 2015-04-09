@@ -1,5 +1,6 @@
 package com.example.android.bluetoothlegatt;
 
+import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothManager;
@@ -7,6 +8,9 @@ import android.content.Context;
 import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.widget.ProgressBar;
+
+import com.jpardogo.android.googleprogressbar.library.FoldingCirclesDrawable;
 
 /**
  * Created by quang.tran on 3/11/2015.
@@ -71,4 +75,30 @@ public class Util {
         return (activeInfo != null && activeInfo.isConnected());
     }
 
+
+    /**
+     * Inflates the Folding Circle {@link android.widget.ProgressBar} while connecting to device.
+     */
+    public static ProgressBar setProgressBar(Activity activity) {
+        ProgressBar mProgressBar;
+        activity.setContentView(R.layout.google_progress_bar);
+        mProgressBar = (ProgressBar) activity.findViewById(R.id.google_progress);
+        mProgressBar.setIndeterminateDrawable(new FoldingCirclesDrawable.Builder(activity).
+                colors(Util.getProgressDrawableColors(activity)).build());
+        return mProgressBar;
+    }
+
+    /**
+     * Returns an array of colors that is displaying in the Folding Circle {@link android.widget.ProgressBar} .
+     *
+     * @return Color array.
+     */
+    private static int[] getProgressDrawableColors(Context context) {
+        int[] colors = new int[4];
+        colors[0] = context.getResources().getColor(R.color.red);
+        colors[1] = context.getResources().getColor(R.color.blue);
+        colors[2] = context.getResources().getColor(R.color.yellow);
+        colors[3] = context.getResources().getColor(R.color.green);
+        return colors;
+    }
 }

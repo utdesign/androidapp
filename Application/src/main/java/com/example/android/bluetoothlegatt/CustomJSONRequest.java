@@ -18,19 +18,19 @@ import com.android.volley.Response.ErrorListener;
 import com.android.volley.Response.Listener;
 import com.android.volley.toolbox.HttpHeaderParser;
 
-public class CustomRequest extends Request<JSONObject> {
+public class CustomJSONRequest extends Request<JSONObject> {
     private Listener<JSONObject> listener;
     private Map<String, String> params;
 
-    public CustomRequest(String url, Map<String, String> params,
-                         Listener<JSONObject> responseListener, ErrorListener errorListener) {
+    public CustomJSONRequest(String url, Map<String, String> params,
+                             Listener<JSONObject> responseListener, ErrorListener errorListener) {
         super(Method.GET, url, errorListener);
         this.listener = responseListener;
         this.params = params;
     }
 
-    public CustomRequest(int method, String url, Map<String, String> params,
-                         Listener<JSONObject> responseListener, ErrorListener errorListener) {
+    public CustomJSONRequest(int method, String url, Map<String, String> params,
+                             Listener<JSONObject> responseListener, ErrorListener errorListener) {
         super(method, url, errorListener);
 
         this.listener = responseListener;

@@ -17,12 +17,9 @@
 package com.example.android.bluetoothlegatt;
 
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
-import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.widget.Toast;
@@ -33,24 +30,105 @@ import com.astuetz.PagerSlidingTabStrip;
  * Activity for scanning and displaying available Bluetooth LE devices.
  */
 public class DeviceScanActivity extends FragmentActivity implements ViewPager.OnPageChangeListener {
-    // Log tag
     private static final String TAG = DeviceScanActivity.class.getSimpleName();
     private static final int INDICATOR_COLOR = R.color.orange;
     public static final int REQUEST_ENABLE_BT = 1;
-    private static final long SCAN_PERIOD = 5000;
 
     private boolean mScanning;
-    private String mConnectionMethod = DeviceControlActivity.BLUETOOTH_METHOD;
     private BluetoothAdapter mBluetoothAdapter;
+
     private DeviceScanPagerAdapter mPagerAdapter;
-
-    private Handler mHandler = new Handler();
-    private BleDeviceListFragmentCallback mBleCallback;
-    private WifiScanCallback mWifiCallback;
-
     private ViewPager mViewPager;
-    private int mCurrentTab;
     private PagerSlidingTabStrip mTabs;
+    private int mCurrentTab;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_device_scan);
+        setTitle(R.string.title_devices);
+
+        mTabs = (PagerSlidingTabStrip) findViewById(R.id.tabs);
+        mTabs.setIndicatorColorResource(INDICATOR_COLOR);
+        mTabs.setTextColor(getResources().getColor(R.color.black));
+        mTabs.setShouldExpand(true);
+        mTabs.setOnPageChangeListener(this);
+
+        // initialize view pager and its adapter.
+        mViewPager = (ViewPager) findViewById(R.id.view_pager);
+        mPagerAdapter = new DeviceScanPagerAdapter(getSupportFragmentManager());
+        mViewPager.setAdapter(mPagerAdapter);
+        final int pageMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources().getDisplayMetrics());
+        mViewPager.setPageMargin(pageMargin);
+        mTabs.setViewPager(mViewPager);
+        mCurrentTab = DeviceScanPagerAdapter.BLUETOOTH_TAB;
+        mViewPager.setCurrentItem(mCurrentTab);
+
+        // Use this check to determine whether BLE is supported on the device.  Then you can
+        // selectively disable BLE-related features.
+        if (!Util.hasBleSupport(this)) {
+            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        mBluetoothAdapter = Util.getBluetoothAdapter(this);
+        if (mBluetoothAdapter == null) {
+            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
+            return;
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_scan, menu);
+        if (!mScanning) {
+            menu.findItem(R.id.menu_stop).setVisible(false);
+            menu.findItem(R.id.menu_scan).setVisible(true);
+            menu.findItem(R.id.menu_refresh).setVisible(false);
+            menu.findItem(R.id.menu_refresh).setActionView(null);
+        } else {
+            menu.findItem(R.id.menu_stop).setVisible(true);
+            menu.findItem(R.id.menu_scan).setVisible(false);
+            menu.findItem(R.id.menu_refresh).setVisible(true);
+            menu.findItem(R.id.menu_refresh).setActionView(
+                    R.layout.actionbar_indeterminate_progress);
+        }
+        return true;
+    }
+
+    public void updateOptionsMenu(boolean enable) {
+        mScanning = enable;
+        invalidateOptionsMenu();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        updateOptionsMenu(true);
+        if (mCurrentTab == 0) {
+            // Start Ble scan
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).bleScan();
+        } else if (mCurrentTab == 1) {
+            // Start Wifi scan
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).wifiScan();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if (mCurrentTab == 0) {
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+        } else if (mCurrentTab == 1) {
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+        }
+    }
+
+    public BluetoothAdapter getBluetoothAdapter() {
+        return mBluetoothAdapter;
+    }
 
     @Override
     public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
@@ -71,139 +149,18 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     }
 
     private void onTabChanged() {
-        mConnectionMethod = DeviceScanPagerAdapter.TITLES[mCurrentTab];
         if (mCurrentTab == 0) {
-            scanWifiDevice(false); // stop Wifi scan
-            scanLeDevice(true); // start Ble scan
+            // Stop Wifi scan
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+            // Start Ble scan
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).bleScan();
         } else if (mCurrentTab == 1) {
-            scanLeDevice(false); // stop Ble scan
-            ((WifiScanCallback) mPagerAdapter.getCurrentItem(mCurrentTab)).onScan(); // start Wifi scan
+            // Stop Ble scan
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+            // Start Wifi scan
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).wifiScan();
         }
     }
 
-    public String getConnectionMethod() {
-        return mConnectionMethod;
-    }
 
-    /**
-     * A callback interface that all fragments containing this fragment must implement.
-     * This mechanism allows fragments to be notified of {@link android.bluetooth.BluetoothAdapter}
-     * scan results.
-     */
-    public interface BleDeviceListFragmentCallback {
-
-        public void onBleScanResult(BluetoothDevice device);
-    }
-
-    public interface WifiScanCallback {
-
-        public void onScan();
-    }
-
-    @Override
-    public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_device_scan);
-        setTitle(R.string.title_devices);
-
-        mTabs = (PagerSlidingTabStrip) findViewById(R.id.tabs);
-        mTabs.setIndicatorColorResource(INDICATOR_COLOR);
-        mTabs.setTextColor(getResources().getColor(R.color.black));
-        mTabs.setShouldExpand(true);
-        mTabs.setOnPageChangeListener(this);
-
-        mViewPager = (ViewPager) findViewById(R.id.view_pager);
-        mPagerAdapter = new DeviceScanPagerAdapter(getSupportFragmentManager());
-        mViewPager.setAdapter(mPagerAdapter);
-        final int pageMargin = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, getResources()
-                .getDisplayMetrics());
-        mViewPager.setPageMargin(pageMargin);
-        mTabs.setViewPager(mViewPager);
-        mCurrentTab = 0;
-
-        // Use this check to determine whether BLE is supported on the device.  Then you can
-        // selectively disable BLE-related features.
-        if (!Util.hasBleSupport(this)) {
-            Toast.makeText(this, R.string.ble_not_supported, Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        mBluetoothAdapter = Util.getBluetoothAdapter(this);
-        if (mBluetoothAdapter == null) {
-            Toast.makeText(this, R.string.error_bluetooth_not_supported, Toast.LENGTH_SHORT).show();
-            return;
-        }
-    }
-
-    public BluetoothAdapter getBluetoothAdapter() {
-        return mBluetoothAdapter;
-    }
-
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_scan, menu);
-        if (!mScanning) {
-            menu.findItem(R.id.menu_stop).setVisible(false);
-            menu.findItem(R.id.menu_scan).setVisible(true);
-            menu.findItem(R.id.menu_refresh).setActionView(null);
-        } else {
-            menu.findItem(R.id.menu_stop).setVisible(true);
-            menu.findItem(R.id.menu_scan).setVisible(false);
-            menu.findItem(R.id.menu_refresh).setActionView(
-                    R.layout.actionbar_indeterminate_progress);
-        }
-        return true;
-    }
-
-    public void scanLeDevice(boolean enable) {
-        if (enable) {
-            Log.d(TAG, "Start LE Scan");
-            // Stops scanning after a pre-defined scan period.
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mScanning = false;
-                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
-                    invalidateOptionsMenu();
-                }
-            }, SCAN_PERIOD);
-
-            mScanning = true;
-            mBluetoothAdapter.startLeScan(mLeScanCallback);
-        } else {
-            Log.d(TAG, "Stop LE Scan");
-            mScanning = false;
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-        }
-        invalidateOptionsMenu();
-    }
-
-    public void scanWifiDevice(boolean enable) {
-        mScanning = enable;
-        invalidateOptionsMenu();
-    }
-
-    // Device scan callback.
-    private BluetoothAdapter.LeScanCallback mLeScanCallback =
-            new BluetoothAdapter.LeScanCallback() {
-
-                @Override
-                /**
-                 * @scanRecord the content of advertisement record offered by the remote device
-                 */
-                public void onLeScan(final BluetoothDevice device, int rssi, final byte[] scanRecord) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Log.d(TAG, "LeScanCallback: device = " + device.getName());
-                            mBleCallback = (BleDeviceListFragmentCallback) mPagerAdapter.getCurrentItem(0);
-                            if (mBleCallback != null) {
-                                mBleCallback.onBleScanResult(device);
-                            } else {
-                                Log.d(TAG, "BleCallback null pointer.");
-                            }
-                        }
-                    });
-                }
-            };
 }

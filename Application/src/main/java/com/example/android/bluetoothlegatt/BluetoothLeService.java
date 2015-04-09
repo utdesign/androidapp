@@ -162,9 +162,9 @@ public class BluetoothLeService extends Service {
     @Override
     public boolean onUnbind(Intent intent) {
         // After using a given device, you should make sure that BluetoothGatt.close() is called
-        // such that resources are cleaned up properly.  In this particular example, close() is
+        // such that resources are cleaned up properly.  In this particular example, closeGatt() is
         // invoked when the UI is disconnected from the Service.
-        close();
+        closeGatt();
         return super.onUnbind(intent);
     }
 
@@ -254,7 +254,7 @@ public class BluetoothLeService extends Service {
      * After using a given BLE device, the app must call this method to ensure resources are
      * released properly.
      */
-    public void close() {
+    public void closeGatt() {
         if (mBluetoothGatt == null) {
             return;
         }

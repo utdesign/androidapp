@@ -18,7 +18,6 @@ package com.example.android.bluetoothlegatt;
 
 import android.app.Activity;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -78,6 +77,7 @@ public class DeviceControlActivity extends Activity {
     public static final String GET_INSTRUCTION = "get ";
     public static final String GET_GRAPH_INSTRUCTION = "gph ";
     public static final String PUT_INSTRUCTION = "put ";
+    public static final String HELP_INSTRUCTION = "?";
     public static final String SLEEP_INSTRUCTION = "sleep ";
     public static final String IF_INSTRUCTION = "if ";
     public static final String ENDIF_INSTRUCTION = "endif";
@@ -116,6 +116,7 @@ public class DeviceControlActivity extends Activity {
     private EditText mGetPinEditText;
     private EditText mPutPinEditText;
     private EditText mPutValEditText;
+    private Button mQuestionButton;
     private EditText mSleepDurationEditText;
     private Button mIfOperatorButton;
     private Button mIfButton;
@@ -240,7 +241,7 @@ public class DeviceControlActivity extends Activity {
 
             // MSP430 launchpad
             if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_MSP430_SERVICE_UUID)) {
-                if (bluetoothLookup(gattService, DEFAULT_MSP430_SERVICE_UUID, DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
+                if (bluetoothLookup(gattService, DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
                         DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID, DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID)) {
                     isMsp430 = true;
                     return;
@@ -250,7 +251,7 @@ public class DeviceControlActivity extends Activity {
             }
             // SimpleBlePeripheral
             else if (gattService.getUuid().toString().equalsIgnoreCase(GraphActivity.DEFAULT_GRAPH_SERVICE_UUID)) {
-                if (bluetoothLookup(gattService, GraphActivity.DEFAULT_GRAPH_SERVICE_UUID, GraphActivity.DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
+                if (bluetoothLookup(gattService, GraphActivity.DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
                         GraphActivity.DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID, GraphActivity.DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID)) {
                     isMsp430 = false;
                     openGraphActivity(null);
@@ -270,14 +271,10 @@ public class DeviceControlActivity extends Activity {
         mNotifyCharacteristic = null;
     }
 
-    private boolean bluetoothLookup(BluetoothGattService gattService, String serviceUuid, String readCharacteristicUuid,
+    private boolean bluetoothLookup(BluetoothGattService gattService, String readCharacteristicUuid,
                                     String writeCharacteristicUuid, String notifyCharacteristicUuid) {
         for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
             final String uuid = characteristic.getUuid().toString();
-            List<BluetoothGattDescriptor> descriptors = characteristic.getDescriptors();
-            for (BluetoothGattDescriptor descriptor : descriptors) {
-                Log.d(TAG, "descriptor = " + descriptor.toString());
-            }
             if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
                 Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                 mReadCharacteristic = characteristic;
@@ -302,30 +299,6 @@ public class DeviceControlActivity extends Activity {
     }
 
     /**
-     * Inflates the Folding Circle {@link ProgressBar} while connecting to device.
-     */
-    private void setProgressBar() {
-        setContentView(R.layout.google_progress_bar);
-        mProgressBar = (ProgressBar) findViewById(R.id.google_progress);
-        mProgressBar.setIndeterminateDrawable(new FoldingCirclesDrawable.Builder(this).
-                colors(getProgressDrawableColors()).build());
-    }
-
-    /**
-     * Returns an array of colors that is displaying in the Folding Circle {@link ProgressBar} .
-     *
-     * @return Color array.
-     */
-    private int[] getProgressDrawableColors() {
-        int[] colors = new int[4];
-        colors[0] = getResources().getColor(R.color.red);
-        colors[1] = getResources().getColor(R.color.blue);
-        colors[2] = getResources().getColor(R.color.yellow);
-        colors[3] = getResources().getColor(R.color.green);
-        return colors;
-    }
-
-    /**
      * Inflates the activity's view after a device is connected.
      */
     private void setControlView() {
@@ -336,150 +309,159 @@ public class DeviceControlActivity extends Activity {
         setContentView(R.layout.activity_device_control);
 
         // Inject views
-        mResponse = (TextView) findViewById(R.id.tv_response);
-        mLastInstruction = (TextView) findViewById(R.id.tv_last_command);
-        mReadButton = (Button) findViewById(R.id.btn_read);
-        mGetButton = (Button) findViewById(R.id.btn_get);
-        mGetPinEditText = (EditText) findViewById(R.id.et_get_pin);
-        mGraphCheckBox = (CheckBox) findViewById(R.id.checkbox_graph);
-        mPutButton = (Button) findViewById(R.id.btn_put);
-        mPutPinEditText = (EditText) findViewById(R.id.et_put_pin);
-        mPutValEditText = (EditText) findViewById(R.id.et_put_value);
-        mSleepButton = (Button) findViewById(R.id.btn_sleep);
-        mSleepDurationEditText = (EditText) findViewById(R.id.et_sleep_ms);
-        mIfOperatorButton = (Button) findViewById(R.id.btn_if_operator);
-        mIfButton = (Button) findViewById(R.id.btn_if);
-        mEndIfButton = (Button) findViewById(R.id.btn_endif);
-        mIfLhsEditText = (EditText) findViewById(R.id.et_if_lhs);
-        mIfRhsEditText = (EditText) findViewById(R.id.et_if_rhs);
+        if (mResponse == null) {
+            mResponse = (TextView) findViewById(R.id.tv_response);
+            mLastInstruction = (TextView) findViewById(R.id.tv_last_command);
+            mReadButton = (Button) findViewById(R.id.btn_read);
+            mGetButton = (Button) findViewById(R.id.btn_get);
+            mGetPinEditText = (EditText) findViewById(R.id.et_get_pin);
+            mGraphCheckBox = (CheckBox) findViewById(R.id.checkbox_graph);
+            mPutButton = (Button) findViewById(R.id.btn_put);
+            mPutPinEditText = (EditText) findViewById(R.id.et_put_pin);
+            mPutValEditText = (EditText) findViewById(R.id.et_put_value);
+            mQuestionButton = (Button) findViewById(R.id.btn_question);
+            mSleepButton = (Button) findViewById(R.id.btn_sleep);
+            mSleepDurationEditText = (EditText) findViewById(R.id.et_sleep_ms);
+            mIfOperatorButton = (Button) findViewById(R.id.btn_if_operator);
+            mIfButton = (Button) findViewById(R.id.btn_if);
+            mEndIfButton = (Button) findViewById(R.id.btn_endif);
+            mIfLhsEditText = (EditText) findViewById(R.id.et_if_lhs);
+            mIfRhsEditText = (EditText) findViewById(R.id.et_if_rhs);
 
-        // Set listeners for buttons
-        mReadButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mBluetoothLeService == null) {
-                    Log.w(TAG, "BluetoothLeService == null");
-                    return;
-                }
-                if (mReadCharacteristic == null) {
-                    Log.w(TAG, "Bluetooth configuration is not setup properly.");
-                    return;
-                }
+            // Set listeners for buttons
+            mReadButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mBluetoothLeService == null) {
+                        Log.w(TAG, "BluetoothLeService == null");
+                        return;
+                    }
+                    if (mReadCharacteristic == null) {
+                        Log.w(TAG, "Bluetooth configuration is not setup properly.");
+                        return;
+                    }
 
-                isReadRequested = true;
-                mBluetoothLeService.readCharacteristic(mReadCharacteristic);
-            }
-        });
-        mGetButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mGraphCheckBox != null) {
-                    // no try-catch needed since the input is restricted to numbers.
-                    String num = mGetPinEditText.getText().toString().trim();
+                    isReadRequested = true;
+                    mBluetoothLeService.readCharacteristic(mReadCharacteristic);
+                }
+            });
+            mGetButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    if (mGraphCheckBox != null) {
+                        // no try-catch needed since the input is restricted to numbers.
+                        String num = mGetPinEditText.getText().toString().trim();
+                        if (num.length() > 0) {
+                            mPinNumber = Integer.parseInt(num);
+                        } else {
+                            Log.w(TAG, "Invalid pin number");
+                            return;
+                        }
+                        String instruction = null;
+                        if (mGraphCheckBox.isChecked()) {
+                            instruction = GET_GRAPH_INSTRUCTION + mPinNumber + "\n";
+                            openGraphActivity(instruction);
+                        } else {
+                            // Request once
+                            instruction = GET_INSTRUCTION + mPinNumber + "\n";
+                            sendInstruction(instruction);
+                        }
+                    }
+                }
+            });
+            mPutButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String num = mPutPinEditText.getText().toString().trim();
                     if (num.length() > 0) {
                         mPinNumber = Integer.parseInt(num);
                     } else {
                         Log.w(TAG, "Invalid pin number");
                         return;
                     }
-                    String instruction = null;
-                    if (mGraphCheckBox.isChecked()) {
-                        instruction = GET_GRAPH_INSTRUCTION + mPinNumber + "\n";
-                        openGraphActivity(instruction);
+                    String val = mPutValEditText.getText().toString().trim();
+                    if (val.length() > 0) {
+                        mPinValue = Integer.parseInt(val);
                     } else {
-                        // Request once
-                        instruction = GET_INSTRUCTION + mPinNumber + "\n";
-                        sendInstruction(instruction);
+                        Log.w(TAG, "Invalid pin value");
+                        return;
+                    }
+                    sendInstruction(PUT_INSTRUCTION + mPinNumber + " " + mPinValue + "\n");
+                }
+            });
+            mQuestionButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendInstruction(HELP_INSTRUCTION);
+                }
+            });
+            mSleepButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    // no try-catch needed since the input is restricted to numbers.
+                    String sleepDuration = mSleepDurationEditText.getText().toString().trim();
+                    if (sleepDuration.length() > 0) {
+                        mSleepDuration = Integer.parseInt(sleepDuration);
+                        sendInstruction(SLEEP_INSTRUCTION + mSleepDuration + "\n");
+                    } else {
+                        Log.w(TAG, "Invalid sleep duration");
                     }
                 }
-            }
-        });
-        mPutButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String num = mPutPinEditText.getText().toString().trim();
-                if (num.length() > 0) {
-                    mPinNumber = Integer.parseInt(num);
-                } else {
-                    Log.w(TAG, "Invalid pin number");
-                    return;
+            });
+            mIfOperatorButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Button btn = (Button) v;
+                    if (btn.getText().toString().equalsIgnoreCase("<")) {
+                        btn.setText("=");
+                        return;
+                    }
+                    if (btn.getText().toString().equalsIgnoreCase("=")) {
+                        btn.setText(">");
+                        return;
+                    }
+                    if (btn.getText().toString().equalsIgnoreCase(">")) {
+                        btn.setText("<");
+                        return;
+                    }
                 }
-                String val = mPutValEditText.getText().toString().trim();
-                if (val.length() > 0) {
-                    mPinValue = Integer.parseInt(val);
-                } else {
-                    Log.w(TAG, "Invalid pin value");
-                    return;
+            });
+            mIfButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    String lhs = mIfLhsEditText.getText().toString().trim();
+                    if (lhs.length() > 0) {
+                        mPinNumber = Integer.parseInt(lhs);
+                    } else {
+                        Log.w(TAG, "Invalid pin number.");
+                        return;
+                    }
+                    String rhs = mIfRhsEditText.getText().toString().trim();
+                    if (rhs.length() > 0) {
+                        mPinValue = Integer.parseInt(rhs);
+                    } else {
+                        Log.w(TAG, "Invalid pin number.");
+                        return;
+                    }
+                    sendInstruction(IF_INSTRUCTION + mPinNumber + " " + mIfOperatorButton.getText().toString().trim() + " " + mPinValue + "\n");
                 }
-                sendInstruction(PUT_INSTRUCTION + mPinNumber + " " + mPinValue + "\n");
-            }
-        });
-        mSleepButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // no try-catch needed since the input is restricted to numbers.
-                String sleepDuration = mSleepDurationEditText.getText().toString().trim();
-                if (sleepDuration.length() > 0) {
-                    mSleepDuration = Integer.parseInt(sleepDuration);
-                    sendInstruction(SLEEP_INSTRUCTION + mSleepDuration + "\n");
-                } else {
-                    Log.w(TAG, "Invalid sleep duration");
+            });
+            mEndIfButton.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    sendInstruction(ENDIF_INSTRUCTION + "\n");
                 }
-            }
-        });
-        mIfOperatorButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Button btn = (Button) v;
-                if (btn.getText().toString().equalsIgnoreCase("<")) {
-                    btn.setText("=");
-                    return;
-                }
-                if (btn.getText().toString().equalsIgnoreCase("=")) {
-                    btn.setText(">");
-                    return;
-                }
-                if (btn.getText().toString().equalsIgnoreCase(">")) {
-                    btn.setText("<");
-                    return;
-                }
-            }
-        });
-        mIfButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String lhs = mIfLhsEditText.getText().toString().trim();
-                if (lhs.length() > 0) {
-                    mPinNumber = Integer.parseInt(lhs);
-                } else {
-                    Log.w(TAG, "Invalid pin number.");
-                    return;
-                }
-                String rhs = mIfRhsEditText.getText().toString().trim();
-                if (rhs.length() > 0) {
-                    mPinValue = Integer.parseInt(rhs);
-                } else {
-                    Log.w(TAG, "Invalid pin number.");
-                    return;
-                }
-                sendInstruction(IF_INSTRUCTION + mPinNumber + " " + mIfOperatorButton.getText().toString().trim() + " " + mPinValue + "\n");
-            }
-        });
-        mEndIfButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                sendInstruction(ENDIF_INSTRUCTION + "\n");
-            }
-        });
+            });
+        }
     }
 
+    // Passing extra data to a Bundle and send it with GraphActivity open request.
     private void openGraphActivity(String instruction) {
         // Open graph page to display 4K data.
         Intent intent = new Intent(DeviceControlActivity.this, GraphActivity.class);
         intent.putExtra(EXTRAS_DEVICE_NAME, mDeviceName);
         intent.putExtra(EXTRAS_DEVICE_ADDRESS, mDeviceAddress);
         if (isBluetoothConnection) {
-            mBluetoothLeService.disconnect();
             intent.putExtra(EXTRAS_CONNECTION_METHOD, BLUETOOTH_METHOD);
             intent.putExtra(EXTRAS_BLUETOOTH_DEVICE_MSP, isMsp430);
         } else {
@@ -528,7 +510,7 @@ public class DeviceControlActivity extends Activity {
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
             bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
-            setProgressBar();
+            mProgressBar = Util.setProgressBar(this);
         } else {
             mRequestQueue = Volley.newRequestQueue(this);
             setControlView();
@@ -562,8 +544,9 @@ public class DeviceControlActivity extends Activity {
             // Volley request
             String url = null;
             HashMap<String, String> params = new HashMap<>();
+            params.put("address", mDeviceAddress);
             params.put("command", instruction);
-            CustomRequest request = new CustomRequest(Request.Method.POST, url, params, new Response.Listener<JSONObject>() {
+            CustomJSONRequest request = new CustomJSONRequest(Request.Method.POST, url, params, new Response.Listener<JSONObject>() {
                 @Override
                 public void onResponse(JSONObject response) {
 
@@ -582,7 +565,6 @@ public class DeviceControlActivity extends Activity {
     public boolean onCreateOptionsMenu(Menu menu) {
         // Inflate the menu; this adds items to the action bar if it is present.
         getMenuInflater().inflate(R.menu.menu_control, menu);
-
         if (isReadRequested || isWriteRequested) {
             menu.findItem(R.id.action_requesting).setVisible(true);
             menu.findItem(R.id.action_requesting).setActionView(
@@ -596,11 +578,9 @@ public class DeviceControlActivity extends Activity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         if (item.getItemId() == R.id.menu_disconnect) {
-            mBluetoothLeService.disconnect();
-            finish();
+            DeviceControlActivity.this.finish();
             return true;
         }
-
         return super.onOptionsItemSelected(item);
     }
 
@@ -612,7 +592,7 @@ public class DeviceControlActivity extends Activity {
             registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-                Log.d(TAG, "Connect request result=" + result);
+                Log.d(TAG, "Connect request result =" + result);
             }
         }
     }
@@ -642,6 +622,7 @@ public class DeviceControlActivity extends Activity {
         super.onDestroy();
 
         if (isBluetoothConnection) {
+            mBluetoothLeService.disconnect();
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
         } else {

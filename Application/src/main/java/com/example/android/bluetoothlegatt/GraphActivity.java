@@ -36,7 +36,7 @@ import java.util.List;
 public class GraphActivity extends Activity {
     private static final String TAG = GraphActivity.class.getSimpleName();
 
-    private static final boolean NO_DATA = false;
+    private static final boolean NO_DATA = true;
     public static final int WRITE_VALUE_FFT = 0x5E;
     public static final int WRITE_VALUE_SAMPLE = 0x5D;
     public static final int MESSAGE_PACKAGE_SIZE = 20;
@@ -52,6 +52,9 @@ public class GraphActivity extends Activity {
 
     public static final String MODE_FFT = "FFT";
     public static final String MODE_SAMPLE = "SAMPLE";
+    public static final String SAMPLE_DESCRIPTION = "Sample Number (X 2.4 = Hertz)";
+    public static final String FFT_DESCRIPTION = "FFT Number (X x.x = Hertz)";
+    public static final String MSP_DESCRIPTION = "PIN VALUES";
 
     private String mDeviceAddress;
     private String mDeviceName;
@@ -66,6 +69,7 @@ public class GraphActivity extends Activity {
     private BluetoothGattCharacteristic mNotifyCharacteristic;
 
     private RequestQueue mRequestQueue;
+    private boolean isSetGraphView = false;
     private int mExpectedPackageNumber = 0;
     private LineChart mChart;
     private ArrayList<String> xVals;
@@ -122,6 +126,8 @@ public class GraphActivity extends Activity {
                 return;
             }
             if (isMsp430) {
+                // In case of MSP 430, data comes from notification characteristic.
+                // TODO: send once, get many? need agreement with hardware developers.
                 if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                     byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     Log.i(TAG, "read data = " + new String(data));
@@ -133,17 +139,18 @@ public class GraphActivity extends Activity {
                 } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                     // Once the instruction is written to MSP430, we only get graph data via notification characteristic.
                     byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
-                    Log.i(TAG, "notified data = " + Util.bytesToHexString(data));
-
+                    Log.i(TAG, "notified data = " + new String(data));
                     mExpectedPackageNumber++;
-                    // Add new data to the data set
+
+                    // Append new data set to the entry buffer.
                     int size = mEntryBuffer.size();
-                    for (int i = 0; i < data.length - 1; i++) {
+                    for (int i = 0; i < data.length; i++) {
+                        // This will iterate through 20 bytes data.
                         int val = 0;
                         if (NO_DATA) {
                             val = ((int) (Math.random() * 200));
                         } else {
-                            val = data[i + 1];
+                            val = data[i];
                         }
                         mEntryBuffer.add(new Entry(val, size++));
                     }
@@ -152,16 +159,19 @@ public class GraphActivity extends Activity {
                         mExpectedPackageNumber = 0;
                         mEntries = new ArrayList<>(mEntryBuffer);
                         mEntryBuffer.clear();
-                        setGraphView();
+                        if (!isSetGraphView) {
+                            setGraphView();
+                        }
                         draw();
                     }
                 }
             } else {
-                // SimpleBlePeripheral
+                // SimpleBlePeripheral: data comes from reading characteristic repeatedly.
+                // TODO: SimpleBlePeripheral read or notify?
                 if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                     // Start populating data
                     byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
-                    Log.i(TAG, "read data[" + data[0] + "] = " + Util.bytesToHexString(data));
+                    Log.i(TAG, "data[" + data[0] + "] = " + Util.bytesToHexString(data));
                     Log.i(TAG, "expected package = " + mExpectedPackageNumber);
 
                     if (data[0] == mExpectedPackageNumber) {
@@ -170,6 +180,8 @@ public class GraphActivity extends Activity {
                         // Add new data to the data set
                         int size = mEntries.size();
                         for (int i = 0; i < data.length - 1; i++) {
+                            // Unlike MSP 430 case, this loop will iterate through 19 bytes data
+                            // because the first byte is the package number.
                             int val = 0;
                             if (NO_DATA) {
                                 val = ((int) (Math.random() * 200));
@@ -184,7 +196,9 @@ public class GraphActivity extends Activity {
                         mBluetoothLeService.readCharacteristic(mReadCharacteristic);
                     } else {
                         // Draw graph after read all data
-                        setGraphView();
+                        if (!isSetGraphView) {
+                            setGraphView();
+                        }
                         draw();
                     }
 
@@ -207,6 +221,7 @@ public class GraphActivity extends Activity {
         }
     };
 
+    // Displays a Google Circle-Folding Progress Bar
     private void setProgressBar() {
         setContentView(R.layout.google_progress_bar);
         if (mProgressBar == null) {
@@ -214,25 +229,40 @@ public class GraphActivity extends Activity {
         }
         mProgressBar.setIndeterminateDrawable(new FoldingCirclesDrawable.Builder(this).
                 colors(getProgressDrawableColors()).build());
+        isSetGraphView = false;
     }
 
     private void setGraphView() {
+        isSetGraphView = true;
         setContentView(R.layout.activity_graph);
 
-        mChart = (LineChart) findViewById(R.id.linechart);
-        mChart.setDescription("Sample Number (X 2.4 = Hertz)");
-        mChart.setDescriptionTextSize(14);
-        mChart.setHighlightEnabled(false);
-        mChart.setDrawGridBackground(true);
-        mChart.setTouchEnabled(true);
-        mChart.setDragEnabled(true);
-        mChart.setScaleEnabled(true);
-        mChart.setPinchZoom(false);
+        if (isBluetoothConnection) {
+            if (isMsp430) {
+                mChart.setDescription(MSP_DESCRIPTION);
+            } else {
+                // SimpleBlePeripheral
+                if (mode.equalsIgnoreCase(MODE_FFT)) {
+                    mChart.setDescription(FFT_DESCRIPTION);
+                } else if (mode.equalsIgnoreCase(MODE_SAMPLE)) {
+                    mChart.setDescription(SAMPLE_DESCRIPTION);
+                }
+            }
+        }
+        if (mChart == null) {
+            mChart = (LineChart) findViewById(R.id.linechart);
+            mChart.setDescriptionTextSize(14);
+            mChart.setHighlightEnabled(false);
+            mChart.setDrawGridBackground(true);
+            mChart.setTouchEnabled(true);
+            mChart.setDragEnabled(true);
+            mChart.setScaleEnabled(true);
+            mChart.setPinchZoom(false);
 
-        XAxis x = mChart.getXAxis();
-        YAxis y = mChart.getAxisLeft();
-        y.setLabelCount(5);
-        mChart.getAxisRight().setEnabled(false);
+            XAxis x = mChart.getXAxis();
+            YAxis y = mChart.getAxisLeft();
+            y.setLabelCount(5);
+            mChart.getAxisRight().setEnabled(false);
+        }
     }
 
     private int[] getProgressDrawableColors() {
@@ -250,18 +280,21 @@ public class GraphActivity extends Activity {
         setProgressBar();
 
         final Intent intent = getIntent();
+        // Get device name
         if (intent.hasExtra(EXTRAS_DEVICE_NAME)) {
             mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
         } else {
             Log.d(TAG, "No device name");
             GraphActivity.this.finish();
         }
+        // Get device address
         if (intent.hasExtra(EXTRAS_DEVICE_ADDRESS)) {
             mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
         } else {
             Log.d(TAG, "No device address");
             GraphActivity.this.finish();
         }
+        // Get device connection method: Bluetooth or Wifi
         if (intent.hasExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD)) {
             String connectionMethod = intent.getStringExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD);
             isBluetoothConnection = connectionMethod.equalsIgnoreCase(DeviceControlActivity.BLUETOOTH_METHOD);
@@ -271,6 +304,7 @@ public class GraphActivity extends Activity {
         }
         if (isBluetoothConnection) {
             if (intent.hasExtra(DeviceControlActivity.EXTRAS_BLUETOOTH_DEVICE_MSP)) {
+                // Get Bluetooth device type: MSP 430 or SimpleBlePeripheral
                 isMsp430 = intent.getBooleanExtra(DeviceControlActivity.EXTRAS_BLUETOOTH_DEVICE_MSP, true);
             }
 
@@ -281,6 +315,7 @@ public class GraphActivity extends Activity {
                 mGraphInstruction = new byte[]{WRITE_VALUE_FFT};
             }
         } else {
+            // Set graph instruction for devices with Wifi connection.
             getGraphInstruction(intent);
         }
 
@@ -300,7 +335,7 @@ public class GraphActivity extends Activity {
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
             bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
         } else {
-            // send get request
+            // Send get graph request to server.
         }
     }
 
@@ -426,7 +461,7 @@ public class GraphActivity extends Activity {
             if (isMsp430) {
                 // MSP430
                 if (gattService.getUuid().toString().equalsIgnoreCase(DeviceControlActivity.DEFAULT_MSP430_SERVICE_UUID)) {
-                    if (bluetoothLookup(gattService, DeviceControlActivity.DEFAULT_MSP430_SERVICE_UUID, DeviceControlActivity.DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
+                    if (bluetoothLookup(gattService, DeviceControlActivity.DEFAULT_MSP430_READ_CHARACTERISTIC_UUID,
                             DeviceControlActivity.DEFAULT_MSP430_WRITE_CHARACTERISTIC_UUID, DeviceControlActivity.DEFAULT_MSP430_NOTIFY_CHARACTERISTIC_UUID)) {
                         return;
                     } else {
@@ -436,7 +471,7 @@ public class GraphActivity extends Activity {
             } else {
                 // SimpleBlePeripheral
                 if (gattService.getUuid().toString().equalsIgnoreCase(DEFAULT_GRAPH_SERVICE_UUID)) {
-                    if (bluetoothLookup(gattService, DEFAULT_GRAPH_SERVICE_UUID, DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
+                    if (bluetoothLookup(gattService, DEFAULT_GRAPH_READ_CHARACTERISTIC_UUID,
                             DEFAULT_GRAPH_WRITE_CHARACTERISTIC_UUID, DEFAULT_GRAPH_NOTIFY_CHARACTERISTIC_UUID)) {
                         return;
                     } else {
@@ -455,10 +490,20 @@ public class GraphActivity extends Activity {
         mNotifyCharacteristic = null;
     }
 
-    private boolean bluetoothLookup(BluetoothGattService gattService, String serviceUuid, String readCharacteristicUuid,
+
+    /**
+     * Try to match default characteristics to characteristics from a particular Gatt service.
+     *
+     * @return <b>true</b> if default characteristics are set up correctly.
+     */
+    private boolean bluetoothLookup(BluetoothGattService gattService, String readCharacteristicUuid,
                                     String writeCharacteristicUuid, String notifyCharacteristicUuid) {
         for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
             final String uuid = characteristic.getUuid().toString();
+
+            Log.d(TAG, "Characteristic " + uuid.toString().substring(4, 8) + ": " + Util.isCharacteristicReadable(characteristic)
+                    + " " + Util.isCharacteristicWritable(characteristic) + " " + Util.isCharacteristicNotifiable(characteristic));
+
             if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
                 Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                 mReadCharacteristic = characteristic;
@@ -484,12 +529,15 @@ public class GraphActivity extends Activity {
 
     private void draw() {
         // Label X-axis
-        xVals = new ArrayList<String>();
-        for (int i = 0; i < mEntries.size(); i++) {
-            xVals.add(i + "");
+        if (xVals == null) {
+            // TODO: this should be changed if size of mEntries is not consistent.
+            xVals = new ArrayList<>();
+            for (int i = 0; i < mEntries.size(); i++) {
+                xVals.add(String.valueOf(i));
+            }
         }
 
-        // create a dataset and give it a type
+        // create a line data set and give it a type
         LineDataSet set1 = new LineDataSet(mEntries, "DataSet");
         set1.setDrawCubic(false);
         set1.setDrawCircles(false);
@@ -511,7 +559,4 @@ public class GraphActivity extends Activity {
         mChart.invalidate();
     }
 
-
-    // FFT: 5E
-    // Sample: 5D
 }

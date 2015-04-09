@@ -3,7 +3,6 @@ package com.example.android.bluetoothlegatt;
 import android.content.Context;
 import android.content.Intent;
 import android.net.wifi.WifiManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.util.Log;
@@ -32,7 +31,7 @@ import java.util.ArrayList;
 /**
  * Created by quangta93 on 3/26/15.
  */
-public class WifiDeviceListFragment extends ListFragment implements DeviceScanActivity.WifiScanCallback {
+public class WifiDeviceListFragment extends ListFragment {
     private static final String TAG = WifiDeviceListFragment.class.getSimpleName();
     private static final String JSON_DEVICE_LIST = "devices";
     private static final String JSON_DEVICE_NAME = "name";
@@ -43,19 +42,7 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
     private RequestQueue mRequestQueue;
 
     public WifiDeviceListFragment() {
-    }
-
-    @Override
-    public void onListItemClick(ListView l, View v, int position, long id) {
-        WifiDevice device = mListAdapter.getDevice(position);
-        if (device == null) return;
-
-        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
-        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
-        intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.WIFI_METHOD);
-        mActivity.scanLeDevice(false);
-        startActivity(intent);
+        mListAdapter = new WifiDeviceListAdapter();
     }
 
     @Override
@@ -69,51 +56,52 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        Log.d(TAG, "Button pressed for " + TAG);
-        if (mActivity.getConnectionMethod().equalsIgnoreCase(DeviceControlActivity.WIFI_METHOD)) {
-            switch (item.getItemId()) {
-                case R.id.menu_scan:
-                case R.id.menu_refresh: {
-                    onScan();
-                    break;
-                }
-                case R.id.menu_stop: {
-                    stopScan();
-                    break;
-                }
+        switch (item.getItemId()) {
+            case R.id.menu_scan: {
+                wifiScan();
+                break;
+            }
+            case R.id.menu_stop: {
+                stopScan();
+                break;
             }
         }
         return super.onOptionsItemSelected(item);
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        onScan();
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        stopScan();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-        stopScan();
-    }
-
-    private void stopScan() {
-        if (mRequestQueue != null) {
-            mRequestQueue.cancelAll(TAG);
+    /**
+     * Start Wifi Scan by verifying Internet connection is enabled.
+     */
+    public void wifiScan() {
+        if (!Util.isNetworkConnected(mActivity)) {
+            new MaterialDialog.Builder(mActivity)
+                    .title(R.string.dialog_title)
+                    .content(R.string.dialog_content)
+                    .positiveText(android.R.string.ok)
+                    .show();
+            WifiManager wifiManager = (WifiManager) mActivity.getSystemService(Context.WIFI_SERVICE);
+            wifiManager.setWifiEnabled(true);
         }
-        mActivity.scanWifiDevice(false);
-        if (mListAdapter != null) mListAdapter.clear();
+
+        // Initializes list view adapter.
+        Log.d(TAG, "sending request");
+        if (mListAdapter == null) {
+            mListAdapter = new WifiDeviceListAdapter();
+        }
+        mListAdapter.clear();
+        setListAdapter(mListAdapter);
+        mActivity.updateOptionsMenu(true);
+        // sendScanRequest();
     }
+
+    /**
+     * Send scan request to web server using Volley library.
+     * Define the response handler.
+     */
 
     private void sendScanRequest() {
         Log.d(TAG, "Start Wifi Scan");
+
         // Instantiate the RequestQueue.
         String url = (Constant.SERVER_URL.length() > 0) ? Constant.SERVER_URL : Constant.SERVER_IP_ADDRESS;
 
@@ -122,7 +110,10 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
                 new Response.Listener<String>() {
                     @Override
                     public void onResponse(String response) {
-                        if (mActivity == null || response == null || response.length() == 0) return;
+                        if (mActivity == null || response == null || response.length() == 0) {
+                            // In case the hosting activity is closed or no response is received.
+                            return;
+                        }
                         try {
                             JSONObject jsonObject = new JSONObject(response);
                             // Parsing the response.
@@ -146,58 +137,44 @@ public class WifiDeviceListFragment extends ListFragment implements DeviceScanAc
                         } catch (Exception e) {
                             Log.w(TAG, "Problem(s) parsing the response.");
                         }
-                        mActivity.scanWifiDevice(false);
+                        mActivity.updateOptionsMenu(false);
                         Log.d(TAG, "Stop Wifi Scan");
                     }
                 }, new Response.ErrorListener() {
             @Override
             public void onErrorResponse(VolleyError error) {
+                // TODO: timeout error = ?
                 Log.w(TAG, error.getMessage());
-                mActivity.scanWifiDevice(false);
+                mActivity.updateOptionsMenu(false);
             }
         });
+
         // Add the request to the RequestQueue.
         stringRequest.setTag(TAG);
         mRequestQueue.add(stringRequest);
     }
 
-    @Override
-    public void onScan() {
-        if (!Util.isNetworkConnected(mActivity)) {
-            new MaterialDialog.Builder(mActivity)
-                    .title(R.string.dialog_title)
-                    .content(R.string.dialog_content)
-                    .positiveText(R.string.enable)
-                    .negativeText(R.string.cancel)
-                    .callback(new MaterialDialog.ButtonCallback() {
-                        @Override
-                        public void onPositive(MaterialDialog dialog) {
-                            // Enabling Wifi
-                            WifiManager wifiManager = (WifiManager) mActivity.getSystemService(Context.WIFI_SERVICE);
-                            wifiManager.setWifiEnabled(true);
-
-                            // Initializes list view adapter.
-                            mListAdapter = new WifiDeviceListAdapter();
-                            setListAdapter(mListAdapter);
-                            mActivity.scanWifiDevice(true);
-                            Log.d(TAG, "sending request");
-                            // sendScanRequest();
-                            dialog.dismiss();
-                        }
-
-                        @Override
-                        public void onNegative(MaterialDialog dialog) {
-                            dialog.dismiss();
-                        }
-                    }).autoDismiss(false).show();
-        } else {
-            // Initializes list view adapter.
-            Log.d(TAG, "sending request");
-            mListAdapter = new WifiDeviceListAdapter();
-            setListAdapter(mListAdapter);
-            mActivity.scanWifiDevice(true);
-            // sendScanRequest();
+    /**
+     * Stop all scan requests.
+     */
+    public void stopScan() {
+        mActivity.updateOptionsMenu(false);
+        if (mRequestQueue != null) {
+            mRequestQueue.cancelAll(TAG);
         }
+    }
+
+    @Override
+    public void onListItemClick(ListView l, View v, int position, long id) {
+        WifiDevice device = mListAdapter.getDevice(position);
+        if (device == null) return;
+
+        final Intent intent = new Intent(mActivity, DeviceControlActivity.class);
+        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
+        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
+        intent.putExtra(DeviceControlActivity.EXTRAS_CONNECTION_METHOD, DeviceControlActivity.WIFI_METHOD);
+        stopScan();
+        startActivity(intent);
     }
 
     /**
