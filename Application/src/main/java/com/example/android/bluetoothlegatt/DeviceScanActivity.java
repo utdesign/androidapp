@@ -18,8 +18,10 @@ package com.example.android.bluetoothlegatt;
 
 import android.bluetooth.BluetoothAdapter;
 import android.os.Bundle;
+import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.widget.Toast;
@@ -55,6 +57,7 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
         mTabs.setOnPageChangeListener(this);
 
         // initialize view pager and its adapter.
+        Log.d(TAG, "on create");
         mViewPager = (ViewPager) findViewById(R.id.view_pager);
         mPagerAdapter = new DeviceScanPagerAdapter(getSupportFragmentManager());
         mViewPager.setAdapter(mPagerAdapter);
@@ -102,20 +105,6 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-
-        updateOptionsMenu(true);
-        if (mCurrentTab == 0) {
-            // Start Ble scan
-            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).bleScan();
-        } else if (mCurrentTab == 1) {
-            // Start Wifi scan
-            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).wifiScan();
-        }
-    }
-
-    @Override
     protected void onPause() {
         super.onPause();
 
@@ -142,6 +131,7 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     public void onPageScrollStateChanged(int state) {
         if (state == ViewPager.SCROLL_STATE_IDLE) {
             if (mCurrentTab != mViewPager.getCurrentItem()) {
+                // update current tab number
                 mCurrentTab = mViewPager.getCurrentItem();
                 onTabChanged();
             }
@@ -149,18 +139,21 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     }
 
     private void onTabChanged() {
+        Log.d(TAG, "tab changed.");
         if (mCurrentTab == 0) {
             // Stop Wifi scan
-            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(DeviceScanPagerAdapter.WIFI_TAB)).stopScan();
             // Start Ble scan
-            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).bleScan();
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(DeviceScanPagerAdapter.BLUETOOTH_TAB)).bleScan();
         } else if (mCurrentTab == 1) {
             // Stop Ble scan
-            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).stopScan();
+            ((BleDeviceListFragment) mPagerAdapter.getCurrentItem(DeviceScanPagerAdapter.BLUETOOTH_TAB)).stopScan();
             // Start Wifi scan
-            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(mCurrentTab)).wifiScan();
+            ((WifiDeviceListFragment) mPagerAdapter.getCurrentItem(DeviceScanPagerAdapter.WIFI_TAB)).wifiScan();
         }
     }
 
-
+    public int getCurrentTab() {
+        return mCurrentTab;
+    }
 }

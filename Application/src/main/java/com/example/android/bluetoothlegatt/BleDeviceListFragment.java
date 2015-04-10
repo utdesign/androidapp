@@ -43,24 +43,33 @@ public class BleDeviceListFragment extends ListFragment {
                         @Override
                         public void run() {
                             Log.d(TAG, "LeScanCallback: new device = " + device.getName());
+                            if (device == null) return;
                             mListAdapter.addDevice(device);
-                            mListAdapter.notifyDataSetChanged();
                         }
                     });
                 }
             };
 
-    public BleDeviceListFragment() {
-        mListAdapter = new BleDeviceListAdapter();
-    }
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "on create");
         mActivity = (DeviceScanActivity) getActivity();
         mBluetoothAdapter = mActivity.getBluetoothAdapter();
+        mListAdapter = new BleDeviceListAdapter();
+        setListAdapter(mListAdapter);
 
         setHasOptionsMenu(true);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Log.d(TAG, " on resume");
+        if (mActivity.getCurrentTab() == DeviceScanPagerAdapter.BLUETOOTH_TAB) {
+            bleScan();
+        }
     }
 
     @Override
@@ -83,6 +92,7 @@ public class BleDeviceListFragment extends ListFragment {
      * Scan for Ble devices.
      */
     public void bleScan() {
+        Log.d(TAG, "Start LE Scan");
         if (mBluetoothAdapter == null) {
             mBluetoothAdapter = mActivity.getBluetoothAdapter();
         }
@@ -96,12 +106,12 @@ public class BleDeviceListFragment extends ListFragment {
             startActivityForResult(enableBtIntent, DeviceScanActivity.REQUEST_ENABLE_BT);
         }
 
-        Log.d(TAG, "Start LE Scan");
         mActivity.updateOptionsMenu(true);
         if (mListAdapter == null) {
             mListAdapter = new BleDeviceListAdapter();
         }
         mListAdapter.clear();
+        setListAdapter(mListAdapter);
         mHandler.postDelayed(new Runnable() {
             @Override
             public void run() {
@@ -155,7 +165,7 @@ public class BleDeviceListFragment extends ListFragment {
             super();
             mLeDevices = new ArrayList<BluetoothDevice>();
             if (getActivity() != null) {
-                mInflater = mActivity.getLayoutInflater();
+                mInflater = getActivity().getLayoutInflater();
             }
         }
 

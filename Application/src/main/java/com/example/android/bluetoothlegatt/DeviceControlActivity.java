@@ -485,7 +485,7 @@ public class DeviceControlActivity extends Activity {
             registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-                Log.d(TAG, "Connect request result =" + result);
+                Log.d(TAG, "Connect request result = " + result);
             }
         }
     }
@@ -496,6 +496,9 @@ public class DeviceControlActivity extends Activity {
 
         if (isBluetoothConnection) {
             unregisterReceiver(mGattUpdateReceiver);
+            if (mBluetoothLeService == null) return;
+            mBluetoothLeService.disconnect();
+            Log.d(TAG, "service disconnected.");
         }
     }
 
@@ -504,7 +507,6 @@ public class DeviceControlActivity extends Activity {
         super.onDestroy();
 
         if (isBluetoothConnection) {
-            mBluetoothLeService.disconnect();
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
         } else {
@@ -568,6 +570,8 @@ public class DeviceControlActivity extends Activity {
                                     String writeCharacteristicUuid, String notifyCharacteristicUuid) {
         for (BluetoothGattCharacteristic characteristic : gattService.getCharacteristics()) {
             final String uuid = characteristic.getUuid().toString();
+            Log.d(TAG, "characteristic " + uuid.substring(4, 8) + ": " + Util.isCharacteristicReadable(characteristic) + " "
+                    + Util.isCharacteristicWritable(characteristic) + " " + Util.isCharacteristicNotifiable(characteristic));
             if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
                 Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                 mReadCharacteristic = characteristic;

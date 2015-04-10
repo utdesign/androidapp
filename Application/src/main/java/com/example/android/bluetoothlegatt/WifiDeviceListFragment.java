@@ -41,15 +41,15 @@ public class WifiDeviceListFragment extends ListFragment {
     private WifiDeviceListAdapter mListAdapter;
     private RequestQueue mRequestQueue;
 
-    public WifiDeviceListFragment() {
-        mListAdapter = new WifiDeviceListAdapter();
-    }
-
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        Log.d(TAG, "on create");
         mActivity = (DeviceScanActivity) getActivity();
         mRequestQueue = Volley.newRequestQueue(mActivity);
+        mListAdapter = new WifiDeviceListAdapter();
+        setListAdapter(mListAdapter);
 
         setHasOptionsMenu(true);
     }
@@ -67,6 +67,17 @@ public class WifiDeviceListFragment extends ListFragment {
             }
         }
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+
+        Log.d(TAG, " on resume");
+        if (mActivity.getCurrentTab() == DeviceScanPagerAdapter.WIFI_TAB) {
+            Log.d(TAG, "wifiScan");
+            // wifiScan();
+        }
     }
 
     /**
@@ -117,7 +128,10 @@ public class WifiDeviceListFragment extends ListFragment {
                         try {
                             JSONObject jsonObject = new JSONObject(response);
                             // Parsing the response.
-                            mListAdapter = new WifiDeviceListAdapter();
+                            if (mListAdapter == null) {
+                                mListAdapter = new WifiDeviceListAdapter();
+                            }
+                            mListAdapter.clear();
                             WifiDeviceListFragment.this.setListAdapter(mListAdapter);
                             JSONArray deviceList = jsonObject.getJSONArray(JSON_DEVICE_LIST);
                             if (deviceList == null) {
@@ -131,7 +145,6 @@ public class WifiDeviceListFragment extends ListFragment {
                                 if ((deviceName != null && device.length() > 0)
                                         && (deviceAddress != null && deviceAddress.length() > 0)) {
                                     mListAdapter.addDevice(new WifiDevice(deviceName, deviceAddress));
-                                    mListAdapter.notifyDataSetChanged();
                                 }
                             }
                         } catch (Exception e) {
@@ -197,6 +210,7 @@ public class WifiDeviceListFragment extends ListFragment {
             if (!mLeDevices.contains(device)) {
                 mLeDevices.add(device);
                 notifyDataSetChanged();
+                Log.d(TAG, "new item added. notify data set.");
             }
         }
 
