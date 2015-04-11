@@ -36,7 +36,7 @@ import java.util.List;
 public class GraphActivity extends Activity {
     private static final String TAG = GraphActivity.class.getSimpleName();
 
-    private static final boolean NO_DATA = true;
+    private static final boolean NO_DATA = false;
     public static final int WRITE_VALUE_FFT = 0x5E;
     public static final int WRITE_VALUE_SAMPLE = 0x5D;
     public static final int MESSAGE_PACKAGE_SIZE = 20;
@@ -158,7 +158,7 @@ public class GraphActivity extends Activity {
                         if (NO_DATA) {
                             val = ((int) (Math.random() * 200));
                         } else {
-                            val = data[i];
+                            val = (int) (data[i] & 0xFF);
                         }
                         mEntryBuffer.add(new Entry(val, size++));
                     }
@@ -195,7 +195,7 @@ public class GraphActivity extends Activity {
                             if (NO_DATA) {
                                 val = ((int) (Math.random() * 200));
                             } else {
-                                val = data[i + 1];
+                                val = (int) (data[i + 1] & 0xFF);
                             }
                             mEntryBuffer.add(new Entry(val, size++));
                         }
@@ -569,7 +569,6 @@ public class GraphActivity extends Activity {
         mNotifyCharacteristic = null;
     }
 
-
     /**
      * Try to match default characteristics to characteristics from a particular Gatt service.
      *
@@ -607,13 +606,13 @@ public class GraphActivity extends Activity {
     }
 
     private void draw() {
-        setGraphView();
-
         // Label X-axis
         if (xVals == null) {
             // TODO: this should be generated every time if size of mEntries is not consistent.
             xVals = new ArrayList<>();
-            for (int i = 0; i < mEntries.size(); i++) {
+            int length = 400;
+            if (isBluetoothConnection && !isMsp430) length = 380;
+            for (int i = 0; i < length; i++) {
                 xVals.add(String.valueOf(i));
             }
         }
@@ -632,7 +631,8 @@ public class GraphActivity extends Activity {
         data.setValueTextSize(9f);
         data.setDrawValues(false);
 
-        // set data
+        setGraphView();
+        // Set data
         mChart.setData(data);
         // Start drawing the graph
         mChart.getLegend().setEnabled(false);

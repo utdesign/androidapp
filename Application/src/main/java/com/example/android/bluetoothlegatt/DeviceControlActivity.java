@@ -38,6 +38,7 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
@@ -81,6 +82,7 @@ public class DeviceControlActivity extends Activity {
     public static final String SLEEP_INSTRUCTION = "sleep ";
     public static final String IF_INSTRUCTION = "if ";
     public static final String ENDIF_INSTRUCTION = "endif";
+    public static final String WRITE_INSTRUCTION = "write";
 
     private String mDeviceName;
     private String mDeviceAddress;
@@ -157,7 +159,6 @@ public class DeviceControlActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-                setControlView();
                 isDeviceConnected = true;
                 invalidateOptionsMenu();
 
@@ -170,6 +171,7 @@ public class DeviceControlActivity extends Activity {
             } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED.equals(action)) {
                 // Search all the supported services and characteristics on the user interface.
                 setupBluetoothLeService();
+                setControlView();
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE.equals(action)) {
                 if (isWriteRequested) {
@@ -208,13 +210,17 @@ public class DeviceControlActivity extends Activity {
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                 byte[] notifiedData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                 if (notifiedData != null) {
-                    String notifiedText = new String(notifiedData).trim();
+                    final String notifiedText = new String(notifiedData).trim();
                     if (notifiedText.length() == 0) {
-                        notifiedText = NO_DATA_PRESENT;
+                        mResponse.setText(NO_DATA_PRESENT);
                     } else {
-                        // TODO: Handle incoming data?
+                        if (mLastInstruction.getText().toString().trim().equalsIgnoreCase(HELP_INSTRUCTION)) {
+                            new MaterialDialog.Builder(context).content(notifiedText)
+                                    .positiveText(android.R.string.ok).show();
+                        } else {
+                            mResponse.setText(notifiedText);
+                        }
                     }
-                    mResponse.setText(notifiedText);
                 } else {
                     Log.w(TAG, "Response data is null.");
                 }
@@ -572,6 +578,7 @@ public class DeviceControlActivity extends Activity {
             final String uuid = characteristic.getUuid().toString();
             Log.d(TAG, "characteristic " + uuid.substring(4, 8) + ": " + Util.isCharacteristicReadable(characteristic) + " "
                     + Util.isCharacteristicWritable(characteristic) + " " + Util.isCharacteristicNotifiable(characteristic));
+
             if (uuid.toString().equalsIgnoreCase(readCharacteristicUuid) && Util.isCharacteristicReadable(characteristic)) {
                 Log.d(TAG, "Setup characteristic read " + uuid.substring(4, 8));
                 mReadCharacteristic = characteristic;
