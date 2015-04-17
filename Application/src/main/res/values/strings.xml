@@ -79,7 +79,7 @@
     <string name="menu_quit">Quit</string>
     <string name="menu_requesting">Requesting</string>
 
-    <string name="dialog_content">Please check your Internet connection!</string>
+    <string name="connection_enable_dialog_content">This application requires Internet connection to operate. Please enable Wifi connection!</string>
     <string name="dialog_title">Wifi Enable</string>
     <string name="enable">Enable</string>
     <string name="cancel">Cancel</string>

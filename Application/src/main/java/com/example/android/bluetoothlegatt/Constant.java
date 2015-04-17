@@ -17,4 +17,6 @@ public class Constant {
     public static final String SERVER_IP_ADDRESS = "";
     public static final String SERVER_URL = "";
 
+    /* Parse Push Notification */
+    public static final String DEFAULT_CHANNEL = "INSTRUCTION";
 }

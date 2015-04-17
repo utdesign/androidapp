@@ -40,6 +40,7 @@ public class GraphActivity extends Activity {
     public static final int WRITE_VALUE_FFT = 0x5E;
     public static final int WRITE_VALUE_SAMPLE = 0x5D;
     public static final int MESSAGE_PACKAGE_SIZE = 20;
+    public static final int MSP430_PACKAGE_SIZE = 400;
 
     public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
     public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
@@ -70,6 +71,7 @@ public class GraphActivity extends Activity {
     private BluetoothGattCharacteristic mNotifyCharacteristic;
 
     private RequestQueue mRequestQueue;
+    private int mResponseCounter = 0;
     private int mExpectedPackageNumber = 0;
     private boolean enableToggle = false;
     private boolean newModeRequested = false;
@@ -135,7 +137,6 @@ public class GraphActivity extends Activity {
             }
             if (isMsp430) {
                 // In case of MSP 430, data comes from notification characteristic.
-                // TODO: send once, get many? need agreement with hardware developers.
                 if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                     byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
                     Log.i(TAG, "read data = " + new String(data));
@@ -147,36 +148,26 @@ public class GraphActivity extends Activity {
                 } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                     // Once the instruction is written to MSP430, we only get graph data via notification characteristic.
                     byte[] data = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
-                    Log.i(TAG, "notified data = " + new String(data));
-                    mExpectedPackageNumber++;
+                    int notifiedVal = -1;
+                    try {
+                        String notifiedText = new String(data);
+                        notifiedText = notifiedText.replace("OK", "").trim();
+                        notifiedVal = Integer.parseInt(notifiedText);
 
-                    // Append new data set to the entry buffer.
-                    int size = mEntryBuffer.size();
-                    for (int i = 0; i < data.length; i++) {
-                        // This will iterate through 20 bytes data.
-                        int val = 0;
-                        if (NO_DATA) {
-                            val = ((int) (Math.random() * 200));
-                        } else {
-                            val = (int) (data[i] & 0xFF);
+                        mEntryBuffer.add(new Entry(notifiedVal, mResponseCounter++));
+                        if (mResponseCounter == MSP430_PACKAGE_SIZE) {
+                            mEntries = new ArrayList<>(mEntryBuffer);
+                            mResponseCounter = 0;
+                            mEntryBuffer.clear();
+                            draw();
                         }
-                        mEntryBuffer.add(new Entry(val, size++));
-                    }
-
-                    if (mExpectedPackageNumber == MESSAGE_PACKAGE_SIZE - 1) {
-                        mEntries = new ArrayList<>(mEntryBuffer);
-                        mExpectedPackageNumber = 0;
-                        mEntryBuffer.clear();
-
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                draw();
-                            }
-                        });
+                    } catch (Exception e) {
+                        e.printStackTrace();
                     }
                 }
-            } else {
+            } else
+
+            {
                 // SimpleBlePeripheral
                 if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                     // Start populating data
@@ -448,7 +439,7 @@ public class GraphActivity extends Activity {
         super.onResume();
 
         if (isBluetoothConnection) {
-            registerReceiver(mGattUpdateReceiver, DeviceControlActivity.makeGattUpdateIntentFilter());
+            registerReceiver(mGattUpdateReceiver, DeviceControlActivity.getIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
                 Log.d(TAG, "Connect request result = " + result);
@@ -507,6 +498,7 @@ public class GraphActivity extends Activity {
             } else {
                 // MSP430: write once, get data from notification characteristic i.e. no loop.
                 Log.d(TAG, "written data = " + Util.bytesToHexString(mGraphInstruction));
+                mResponseCounter = 0;
                 mWriteCharacteristic.setValue(mGraphInstruction);
                 mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
             }

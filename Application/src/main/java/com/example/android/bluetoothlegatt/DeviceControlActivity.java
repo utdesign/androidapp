@@ -44,7 +44,6 @@ import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.Volley;
-import com.jpardogo.android.googleprogressbar.library.FoldingCirclesDrawable;
 
 import org.json.JSONObject;
 
@@ -83,6 +82,7 @@ public class DeviceControlActivity extends Activity {
     public static final String IF_INSTRUCTION = "if ";
     public static final String ENDIF_INSTRUCTION = "endif";
     public static final String WRITE_INSTRUCTION = "write";
+    public static final String DO_INSTRUCTION = "do";
 
     private String mDeviceName;
     private String mDeviceAddress;
@@ -154,11 +154,16 @@ public class DeviceControlActivity extends Activity {
     // ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
     // ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
     // ACTION_DATA_AVAILABLE: received data from the device. This can be a result of read or notification operations.
-    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
-            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+
+            if (CustomParsePushBroadcastReceiver.ACTION_PARSE_RECEIVE.equals(action)) {
+                Log.d(TAG, "received instruction = " + intent.getStringExtra(CustomParsePushBroadcastReceiver.EXTRA_INSTRUCTION));
+                return;
+
+            } else if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 isDeviceConnected = true;
                 invalidateOptionsMenu();
 
@@ -209,11 +214,16 @@ public class DeviceControlActivity extends Activity {
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY.equals(action)) {
                 byte[] notifiedData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
+                Log.d(TAG, "notify text = " + new String(notifiedData));
                 if (notifiedData != null) {
-                    final String notifiedText = new String(notifiedData).trim();
+                    String notifiedText = new String(notifiedData).trim();
                     if (notifiedText.length() == 0) {
                         mResponse.setText(NO_DATA_PRESENT);
                     } else {
+                        if (notifiedText.contains("OK")) {
+                            notifiedText = notifiedText.replace("OK", "").trim();
+                        }
+
                         if (mLastInstruction.getText().toString().trim().equalsIgnoreCase(HELP_INSTRUCTION)) {
                             new MaterialDialog.Builder(context).content(notifiedText)
                                     .positiveText(android.R.string.ok).show();
@@ -228,7 +238,7 @@ public class DeviceControlActivity extends Activity {
         }
     };
 
-    public static IntentFilter makeGattUpdateIntentFilter() {
+    public static IntentFilter getIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
         intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
@@ -236,6 +246,8 @@ public class DeviceControlActivity extends Activity {
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_READ);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY);
+
+        intentFilter.addAction(CustomParsePushBroadcastReceiver.ACTION_PARSE_RECEIVE);
         return intentFilter;
     }
 
@@ -488,7 +500,8 @@ public class DeviceControlActivity extends Activity {
         super.onResume();
 
         if (isBluetoothConnection) {
-            registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+            Log.d(TAG, "receiver registered.");
+            registerReceiver(broadcastReceiver, getIntentFilter());
             if (mBluetoothLeService != null) {
                 final boolean result = mBluetoothLeService.connect(mDeviceAddress);
                 Log.d(TAG, "Connect request result = " + result);
@@ -501,7 +514,7 @@ public class DeviceControlActivity extends Activity {
         super.onPause();
 
         if (isBluetoothConnection) {
-            unregisterReceiver(mGattUpdateReceiver);
+            unregisterReceiver(broadcastReceiver);
             if (mBluetoothLeService == null) return;
             mBluetoothLeService.disconnect();
             Log.d(TAG, "service disconnected.");

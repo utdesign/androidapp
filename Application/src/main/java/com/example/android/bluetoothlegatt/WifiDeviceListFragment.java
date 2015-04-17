@@ -84,16 +84,6 @@ public class WifiDeviceListFragment extends ListFragment {
      * Start Wifi Scan by verifying Internet connection is enabled.
      */
     public void wifiScan() {
-        if (!Util.isNetworkConnected(mActivity)) {
-            new MaterialDialog.Builder(mActivity)
-                    .title(R.string.dialog_title)
-                    .content(R.string.dialog_content)
-                    .positiveText(android.R.string.ok)
-                    .show();
-            WifiManager wifiManager = (WifiManager) mActivity.getSystemService(Context.WIFI_SERVICE);
-            wifiManager.setWifiEnabled(true);
-        }
-
         // Initializes list view adapter.
         Log.d(TAG, "sending request");
         if (mListAdapter == null) {

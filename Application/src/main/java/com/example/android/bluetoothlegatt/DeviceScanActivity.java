@@ -17,8 +17,11 @@
 package com.example.android.bluetoothlegatt;
 
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentActivity;
 import android.support.v4.view.ViewPager;
 import android.util.Log;
@@ -26,6 +29,7 @@ import android.util.TypedValue;
 import android.view.Menu;
 import android.widget.Toast;
 
+import com.afollestad.materialdialogs.MaterialDialog;
 import com.astuetz.PagerSlidingTabStrip;
 
 /**
@@ -102,6 +106,41 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     public void updateOptionsMenu(boolean enable) {
         mScanning = enable;
         invalidateOptionsMenu();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        final WifiManager manager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+        if (!manager.isWifiEnabled()) {
+            // Enable Wifi
+            new MaterialDialog.Builder(this).title(R.string.dialog_title)
+                    .content(R.string.connection_enable_dialog_content)
+                    .positiveText(android.R.string.ok)
+                    .negativeText(android.R.string.cancel)
+                    .callback(new MaterialDialog.ButtonCallback() {
+                        @Override
+                        public void onPositive(MaterialDialog dialog) {
+                            manager.setWifiEnabled(true);
+                        }
+
+                        @Override
+                        public void onNegative(MaterialDialog dialog) {
+                            dialog.getOwnerActivity().finish();
+                        }
+                    })
+                    .show();
+        } else {
+            final ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+            NetworkInfo info = connectivityManager.getActiveNetworkInfo();
+            if (info != null && !info.isConnected()) {
+                new MaterialDialog.Builder(this).title(R.string.dialog_title)
+                        .content("Device is not connected to the Internet. Please check your Internet connection for full features.")
+                        .positiveText(android.R.string.ok)
+                        .show();
+            }
+        }
     }
 
     @Override

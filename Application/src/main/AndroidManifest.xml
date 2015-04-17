@@ -70,7 +70,8 @@
         </activity>
         <activity
             android:name=".DeviceControlActivity"
-            android:parentActivityName=".DeviceScanActivity">
+            android:parentActivityName=".DeviceScanActivity"
+            android:launchMode="singleTop">
             <!-- Parent activity meta-data to support 4.0 and lower -->
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
@@ -87,27 +88,18 @@
                 android:value=".DeviceControlActivity" />
         </activity>
 
-        <!-- Services -->
+        <!-- Ble Services -->
         <service
             android:name=".BluetoothLeService"
             android:enabled="true" />
 
-        <!-- Parse API -->
+        <!-- Parse Push Notification API -->
         <service android:name="com.parse.PushService" />
 
         <receiver android:name="com.parse.ParseBroadcastReceiver">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.USER_PRESENT" />
-            </intent-filter>
-        </receiver>
-        <receiver
-            android:name="com.parse.ParsePushBroadcastReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="com.parse.push.intent.RECEIVE" />
-                <action android:name="com.parse.push.intent.DELETE" />
-                <action android:name="com.parse.push.intent.OPEN" />
             </intent-filter>
         </receiver>
         <receiver
@@ -118,6 +110,15 @@
                 <action android:name="com.google.android.c2dm.intent.REGISTRATION" />
 
                 <category android:name="com.example.android.bluetoothlegatt" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.example.android.bluetoothlegatt.CustomParsePushBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.parse.push.intent.RECEIVE" />
+                <action android:name="com.parse.push.intent.DELETE" />
+                <action android:name="com.parse.push.intent.OPEN" />
             </intent-filter>
         </receiver>
 
