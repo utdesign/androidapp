@@ -15,4 +15,5 @@
     <color name="deep_orange">#ff7043</color>
     <color name="black">#000000</color>
     <color name="black_semi_transparent">#B2000000</color>
+    <color name="background_window">#FFE5E5E5</color>
 </resources>

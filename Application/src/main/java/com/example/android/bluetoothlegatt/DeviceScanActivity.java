@@ -123,11 +123,13 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
                         @Override
                         public void onPositive(MaterialDialog dialog) {
                             manager.setWifiEnabled(true);
+                            return;
                         }
 
                         @Override
                         public void onNegative(MaterialDialog dialog) {
                             dialog.getOwnerActivity().finish();
+                            return;
                         }
                     })
                     .show();

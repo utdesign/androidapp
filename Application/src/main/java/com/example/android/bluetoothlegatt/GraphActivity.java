@@ -151,6 +151,7 @@ public class GraphActivity extends Activity {
                     int notifiedVal = -1;
                     try {
                         String notifiedText = new String(data);
+                        Log.d(TAG, notifiedText);
                         notifiedText = notifiedText.replace("OK", "").trim();
                         notifiedVal = Integer.parseInt(notifiedText);
 
