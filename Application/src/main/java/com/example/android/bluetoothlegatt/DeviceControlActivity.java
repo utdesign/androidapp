@@ -76,6 +76,7 @@ public class DeviceControlActivity extends Activity {
     // List of available instructions
     public static final String GET_INSTRUCTION = "get ";
     public static final String GET_GRAPH_INSTRUCTION = "gph ";
+    public static final String MSP_END_GRAPH_INSTRUCTION = "endg";
     public static final String PUT_INSTRUCTION = "put ";
     public static final String HELP_INSTRUCTION = "?";
     public static final String SLEEP_INSTRUCTION = "sleep ";
@@ -100,6 +101,8 @@ public class DeviceControlActivity extends Activity {
 
     // Wifi Elements
     private RequestQueue mRequestQueue;
+    private boolean isServerRequest = false;
+    private String mSessionId;
 
     // Device Control Elements
     private int mPinNumber;
@@ -161,6 +164,13 @@ public class DeviceControlActivity extends Activity {
 
             if (CustomParsePushBroadcastReceiver.ACTION_PARSE_RECEIVE.equals(action)) {
                 Log.d(TAG, "received instruction = " + intent.getStringExtra(CustomParsePushBroadcastReceiver.EXTRA_INSTRUCTION));
+                if (isBluetoothConnection) {
+                    String instruction = intent.getStringExtra(CustomParsePushBroadcastReceiver.EXTRA_INSTRUCTION);
+                    isServerRequest = true;
+                    sendInstruction(instruction);
+                } else {
+                    sendErrorMessageInBackground();
+                }
                 return;
 
             } else if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
@@ -217,13 +227,14 @@ public class DeviceControlActivity extends Activity {
                 Log.d(TAG, "notify text = " + new String(notifiedData));
                 if (notifiedData != null) {
                     String notifiedText = new String(notifiedData).trim();
-                    if (notifiedText.length() == 0) {
-                        mResponse.setText(NO_DATA_PRESENT);
-                    } else {
-                        if (notifiedText.contains("OK")) {
-                            notifiedText = notifiedText.replace("OK", "").trim();
-                        }
 
+                    if (isServerRequest) {
+                        isServerRequest = false;
+
+                        // Send response to server.
+                        sendResponseInBackground(notifiedText);
+                    } else {
+                        // Display response.
                         if (mLastInstruction.getText().toString().trim().equalsIgnoreCase(HELP_INSTRUCTION)) {
                             new MaterialDialog.Builder(context).content(notifiedText)
                                     .positiveText(android.R.string.ok).show();
@@ -345,7 +356,7 @@ public class DeviceControlActivity extends Activity {
             mQuestionButton.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    sendInstruction(HELP_INSTRUCTION);
+                    sendInstruction(HELP_INSTRUCTION + "\n");
                 }
             });
             mSleepButton.setOnClickListener(new View.OnClickListener() {
@@ -659,4 +670,11 @@ public class DeviceControlActivity extends Activity {
         }
     }
 
+    private void sendResponseInBackground(String response) {
+
+    }
+
+    private void sendErrorMessageInBackground() {
+
+    }
 }

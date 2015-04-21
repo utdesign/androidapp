@@ -56,7 +56,6 @@ public class GraphActivity extends Activity {
     public static final String SAMPLE_DESCRIPTION = "Sample Number (X 2.4 = Hertz)";
     public static final String FFT_DESCRIPTION = "FFT Number (X x.x = Hertz)";
     public static final String MSP_DESCRIPTION = "PIN VALUES";
-    public static final String MSP_END_GRAPH_INSTRUCTION = "endg";
 
     private String mDeviceAddress;
     private String mDeviceName;
@@ -151,11 +150,11 @@ public class GraphActivity extends Activity {
                     int notifiedVal = -1;
                     try {
                         String notifiedText = new String(data);
-                        Log.d(TAG, notifiedText);
                         notifiedText = notifiedText.replace("OK", "").trim();
                         notifiedVal = Integer.parseInt(notifiedText);
-
-                        mEntryBuffer.add(new Entry(notifiedVal, mResponseCounter++));
+                        mResponseCounter++;
+                        Log.d(TAG, notifiedText + " " + mResponseCounter);
+                        mEntryBuffer.add(new Entry(notifiedVal, mResponseCounter));
                         if (mResponseCounter == MSP430_PACKAGE_SIZE) {
                             mEntries = new ArrayList<>(mEntryBuffer);
                             mResponseCounter = 0;
@@ -166,9 +165,7 @@ public class GraphActivity extends Activity {
                         e.printStackTrace();
                     }
                 }
-            } else
-
-            {
+            } else {
                 // SimpleBlePeripheral
                 if (BluetoothLeService.ACTION_DATA_AVAILABLE_READ.equals(action)) {
                     // Start populating data
@@ -456,15 +453,14 @@ public class GraphActivity extends Activity {
 
         if (isBluetoothConnection) {
             if (isMsp430) {
-                if (mWriteCharacteristic != null && mBluetoothLeService == null) {
-                    mWriteCharacteristic.setValue(MSP_END_GRAPH_INSTRUCTION);
+                if (mWriteCharacteristic != null && mBluetoothLeService != null) {
+                    mWriteCharacteristic.setValue(DeviceControlActivity.MSP_END_GRAPH_INSTRUCTION + "\n");
                     mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
                 }
             }
             unregisterReceiver(mGattUpdateReceiver);
             if (mBluetoothLeService == null) return;
             mBluetoothLeService.disconnect();
-            Log.d(TAG, "service disconnected.");
         }
     }
 

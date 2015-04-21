@@ -20,6 +20,7 @@ public class CustomParsePushBroadcastReceiver extends ParsePushBroadcastReceiver
     private static final String TAG = CustomParsePushBroadcastReceiver.class.getSimpleName();
     public static final String ACTION_PARSE_RECEIVE = "ACTION_PARSE_RECEIVE";
     public static final String EXTRA_INSTRUCTION = "EXTRA_INSTRUCTION";
+    public static final String EXTRA_SESSION_ID = "EXTRA_SESSION_ID";
     private static final String EXTRA_ALERT = "alert";
 
     @Override

@@ -5,10 +5,10 @@
         android:id="@+id/action_requesting"
         android:checkable="false"
         android:orderInCategory="1"
-        app:showAsAction="always"
+        android:showAsAction="always"
         android:title="@string/menu_requesting" />
     <item
         android:id="@+id/menu_disconnect"
         android:title="@string/menu_disconnect"
-        app:showAsAction="always" />
+        android:showAsAction="always" />
 </menu>
