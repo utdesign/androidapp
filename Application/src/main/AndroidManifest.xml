@@ -113,7 +113,7 @@
             </intent-filter>
         </receiver>
         <receiver
-            android:name="com.example.android.bluetoothlegatt.CustomParsePushBroadcastReceiver"
+            android:name=".CustomParsePushReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.parse.push.intent.RECEIVE" />

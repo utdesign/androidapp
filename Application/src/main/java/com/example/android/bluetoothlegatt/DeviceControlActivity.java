@@ -26,7 +26,9 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -39,16 +41,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.afollestad.materialdialogs.MaterialDialog;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.Volley;
 
 import org.json.JSONObject;
 
-import java.util.HashMap;
 import java.util.List;
+
+import retrofit.RestAdapter;
+import retrofit.http.Field;
+import retrofit.http.FormUrlEncoded;
+import retrofit.http.POST;
 
 /**
  * For a given BLE device, this Activity provides the user interface to send instructions and
@@ -67,6 +68,12 @@ public class DeviceControlActivity extends Activity {
     public static final String BLUETOOTH_METHOD = "BLUETOOTH";
     public static final String WIFI_METHOD = "WIFI";
 
+    // Retrofit API configuration
+    private static final String RETROFIT_API_ENDPOINT = "http://169.54.208.180:3000/utdesign";
+    private static final String EXTRA_RESULT_TO_SERVER = "result";
+    private static final String EXTRA_RESPONSE = "response";
+    private static final String EXTRA_ERROR_MESSAGE = "error_message";
+
     // Default MSP430 Configuration
     public static final String DEFAULT_MSP430_SERVICE_UUID = "0000ffe0-0000-1000-8000-00805f9b34fb";
     public static final String DEFAULT_MSP430_READ_CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb";
@@ -77,6 +84,7 @@ public class DeviceControlActivity extends Activity {
     public static final String GET_INSTRUCTION = "get ";
     public static final String GET_GRAPH_INSTRUCTION = "gph ";
     public static final String MSP_END_GRAPH_INSTRUCTION = "endg";
+    public static final String GET_SERVER_GRAPH_INSTRUCTION = "sgph";
     public static final String PUT_INSTRUCTION = "put ";
     public static final String HELP_INSTRUCTION = "?";
     public static final String SLEEP_INSTRUCTION = "sleep ";
@@ -100,7 +108,8 @@ public class DeviceControlActivity extends Activity {
     private boolean isWriteRequested = false;
 
     // Wifi Elements
-    private RequestQueue mRequestQueue;
+    private RestAdapter mRestAdapter;
+    private RetrofitResponseApi mClient;
     private boolean isServerRequest = false;
     private String mSessionId;
 
@@ -162,14 +171,17 @@ public class DeviceControlActivity extends Activity {
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
 
-            if (CustomParsePushBroadcastReceiver.ACTION_PARSE_RECEIVE.equals(action)) {
-                Log.d(TAG, "received instruction = " + intent.getStringExtra(CustomParsePushBroadcastReceiver.EXTRA_INSTRUCTION));
+            if (CustomParsePushReceiver.ACTION_PARSE_RECEIVE.equals(action)) {
                 if (isBluetoothConnection) {
-                    String instruction = intent.getStringExtra(CustomParsePushBroadcastReceiver.EXTRA_INSTRUCTION);
+                    String instruction = intent.getStringExtra(CustomParsePushReceiver.EXTRA_INSTRUCTION).trim();
+                    mSessionId = intent.getStringExtra(CustomParsePushReceiver.EXTRA_SESSION_ID);
+                    Log.d(TAG, "instruction = " + instruction);
+                    Log.d(TAG, "session = " + mSessionId);
                     isServerRequest = true;
-                    sendInstruction(instruction);
-                } else {
-                    sendErrorMessageInBackground();
+                    if (instruction.contains(GET_GRAPH_INSTRUCTION)) {
+                        instruction = GET_SERVER_GRAPH_INSTRUCTION;
+                    }
+                    sendInstruction(instruction + "\n");
                 }
                 return;
 
@@ -189,8 +201,8 @@ public class DeviceControlActivity extends Activity {
                 setControlView();
 
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE.equals(action)) {
-                if (isWriteRequested) {
-                    // Display write response.
+                if (isWriteRequested && !isServerRequest) {
+                    // Display write response only if the instruction initiated by app.
                     isWriteRequested = false;
                     invalidateOptionsMenu();
                     byte[] responseData = intent.getByteArrayExtra(BluetoothLeService.EXTRA_DATA);
@@ -216,7 +228,11 @@ public class DeviceControlActivity extends Activity {
                         if (responseText.length() == 0) {
                             responseText = NO_DATA_PRESENT;
                         }
-                        mResponse.setText(responseText);
+                        if (isServerRequest) {
+                            sendResponseInBackground(responseText);
+                        } else {
+                            mResponse.setText(responseText);
+                        }
                     } else {
                         Log.w(TAG, "Response data is null.");
                     }
@@ -229,8 +245,6 @@ public class DeviceControlActivity extends Activity {
                     String notifiedText = new String(notifiedData).trim();
 
                     if (isServerRequest) {
-                        isServerRequest = false;
-
                         // Send response to server.
                         sendResponseInBackground(notifiedText);
                     } else {
@@ -258,7 +272,7 @@ public class DeviceControlActivity extends Activity {
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_WRITE);
         intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE_NOTIFY);
 
-        intentFilter.addAction(CustomParsePushBroadcastReceiver.ACTION_PARSE_RECEIVE);
+        intentFilter.addAction(CustomParsePushReceiver.ACTION_PARSE_RECEIVE);
         return intentFilter;
     }
 
@@ -469,6 +483,16 @@ public class DeviceControlActivity extends Activity {
             Log.w(TAG, "NullPointerException when trying to getActionBar().");
         }
 
+        // Setup HTTP API for both cases
+        // if (isBluetoothConnection):
+        //      send responses to server's requests.
+        // else: send instructions to server.
+        mRestAdapter = new RestAdapter.Builder()
+                .setEndpoint(RETROFIT_API_ENDPOINT)
+                .setLogLevel(RestAdapter.LogLevel.FULL)
+                .build();
+        mClient = mRestAdapter.create(RetrofitResponseApi.class);
+
         if (isBluetoothConnection) {
             // Bind BluetoothLeService to this activity
             Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
@@ -476,7 +500,6 @@ public class DeviceControlActivity extends Activity {
 
             mProgressBar = Util.setProgressBar(this);
         } else {
-            mRequestQueue = Volley.newRequestQueue(this);
             setControlView();
         }
     }
@@ -539,8 +562,6 @@ public class DeviceControlActivity extends Activity {
         if (isBluetoothConnection) {
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
-        } else {
-            mRequestQueue.cancelAll(TAG);
         }
     }
 
@@ -635,12 +656,22 @@ public class DeviceControlActivity extends Activity {
         if (isBluetoothConnection) {
             if (mBluetoothLeService == null) {
                 Log.w(TAG, "BluetoothLeService == null");
+                String errMessage = "Bluetooth Service not available";
+                Toast.makeText(this, errMessage, Toast.LENGTH_LONG).show();
+                if (isServerRequest) {
+                    // Send error message to server.
+                    sendErrorMessageInBackground(errMessage);
+                }
+                DeviceControlActivity.this.finish();
                 return;
             }
 
             isWriteRequested = true;
             invalidateOptionsMenu();
-            mLastInstruction.setText(instruction.trim());
+            if (!isServerRequest) {
+                mLastInstruction.setText(instruction.trim());
+            }
+            Log.d(TAG, "instruction sent to device = " + instruction.trim());
             mWriteCharacteristic.setValue(instruction);
             mBluetoothLeService.writeCharacteristic(mWriteCharacteristic);
 
@@ -650,31 +681,62 @@ public class DeviceControlActivity extends Activity {
             invalidateOptionsMenu();
 
             // TODO: send wifi request
-            // Volley request
-            String url = null;
-            HashMap<String, String> params = new HashMap<>();
-            params.put("address", mDeviceAddress);
-            params.put("command", instruction);
-            CustomJSONRequest request = new CustomJSONRequest(Request.Method.POST, url, params, new Response.Listener<JSONObject>() {
-                @Override
-                public void onResponse(JSONObject response) {
-
-                }
-            }, new Response.ErrorListener() {
-                @Override
-                public void onErrorResponse(VolleyError error) {
-                    isWriteRequested = false;
-                }
-            });
-            mRequestQueue.add(request);
         }
     }
 
-    private void sendResponseInBackground(String response) {
+    private void sendResponseInBackground(String responseText) {
+        if (responseText == null || responseText.isEmpty()) {
+            sendErrorMessageInBackground("No response from device.");
+            return;
+        }
+
+        isServerRequest = false;
+        try {
+            // Send response message in background
+            final JSONObject response = new JSONObject();
+            response.put(EXTRA_RESULT_TO_SERVER, true);
+            response.put(CustomParsePushReceiver.EXTRA_SESSION, mSessionId);
+            response.put(EXTRA_RESPONSE, responseText);
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG, "server response = " + mClient.sendResponse(response));
+                }
+            }).start();
+        } catch (Exception e) {
+            Log.d(TAG, e.getMessage());
+        }
+    }
+
+    private void sendErrorMessageInBackground(String errMessage) {
+        isServerRequest = false;
+        try {
+            // Send error message to cloud server.
+            final JSONObject response = new JSONObject();
+            response.put(CustomParsePushReceiver.EXTRA_SESSION, mSessionId);
+            response.put(EXTRA_RESULT_TO_SERVER, false);
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d(TAG, "server response = " + mClient.sendResponse(response));
+                }
+            }).start();
+        } catch (Exception e) {
+            Log.d(TAG, e.getMessage());
+        }
+    }
+
+    /**
+     * Public interface to send requests and responses to cloud server via Retrofit REST HTTP API.
+     */
+    public interface RetrofitResponseApi {
+
+        @FormUrlEncoded
+        @POST("/")
+        public String sendResponse(@Field("response") JSONObject response);
 
     }
 
-    private void sendErrorMessageInBackground() {
-
-    }
 }

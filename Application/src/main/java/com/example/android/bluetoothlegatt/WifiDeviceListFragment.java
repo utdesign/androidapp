@@ -1,8 +1,6 @@
 package com.example.android.bluetoothlegatt;
 
-import android.content.Context;
 import android.content.Intent;
-import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.util.Log;
@@ -15,18 +13,16 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.afollestad.materialdialogs.MaterialDialog;
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+
+import retrofit.Callback;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import retrofit.http.GET;
 
 /**
  * Created by quangta93 on 3/26/15.
@@ -37,9 +33,16 @@ public class WifiDeviceListFragment extends ListFragment {
     private static final String JSON_DEVICE_NAME = "name";
     private static final String JSON_DEVICE_ADDRESS = "address";
 
+    // Retrofit API
+    private static final String RETROFIT_API_ENDPOINT = "http://169.54.208.180:3000/utdesign";
+
     private DeviceScanActivity mActivity;
     private WifiDeviceListAdapter mListAdapter;
-    private RequestQueue mRequestQueue;
+    private RestAdapter mRestAdapter = new RestAdapter.Builder()
+            .setEndpoint(RETROFIT_API_ENDPOINT)
+            .setLogLevel(RestAdapter.LogLevel.FULL)
+            .build();
+    private RetrofitScanApi mClient = mRestAdapter.create(RetrofitScanApi.class);
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -47,7 +50,6 @@ public class WifiDeviceListFragment extends ListFragment {
 
         Log.d(TAG, "on create");
         mActivity = (DeviceScanActivity) getActivity();
-        mRequestQueue = Volley.newRequestQueue(mActivity);
         mListAdapter = new WifiDeviceListAdapter();
         setListAdapter(mListAdapter);
 
@@ -107,54 +109,51 @@ public class WifiDeviceListFragment extends ListFragment {
         String url = (Constant.SERVER_URL.length() > 0) ? Constant.SERVER_URL : Constant.SERVER_IP_ADDRESS;
 
         // Request a string response from the provided URL.
-        StringRequest stringRequest = new StringRequest(Request.Method.GET, url,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        if (mActivity == null || response == null || response.length() == 0) {
-                            // In case the hosting activity is closed or no response is received.
-                            return;
-                        }
-                        try {
-                            JSONObject jsonObject = new JSONObject(response);
-                            // Parsing the response.
-                            if (mListAdapter == null) {
-                                mListAdapter = new WifiDeviceListAdapter();
-                            }
-                            mListAdapter.clear();
-                            WifiDeviceListFragment.this.setListAdapter(mListAdapter);
-                            JSONArray deviceList = jsonObject.getJSONArray(JSON_DEVICE_LIST);
-                            if (deviceList == null) {
-                                Toast.makeText(mActivity, "Error: No device list in response.", Toast.LENGTH_SHORT).show();
-                                return;
-                            }
-                            for (int i = 0; i < deviceList.length(); i++) {
-                                JSONObject device = (JSONObject) deviceList.get(i);
-                                String deviceName = device.getString(JSON_DEVICE_NAME);
-                                String deviceAddress = device.getString(JSON_DEVICE_ADDRESS);
-                                if ((deviceName != null && device.length() > 0)
-                                        && (deviceAddress != null && deviceAddress.length() > 0)) {
-                                    mListAdapter.addDevice(new WifiDevice(deviceName, deviceAddress));
-                                }
-                            }
-                        } catch (Exception e) {
-                            Log.w(TAG, "Problem(s) parsing the response.");
-                        }
-                        mActivity.updateOptionsMenu(false);
-                        Log.d(TAG, "Stop Wifi Scan");
-                    }
-                }, new Response.ErrorListener() {
+        mClient.scanForDevices(new Callback<Object>() {
             @Override
-            public void onErrorResponse(VolleyError error) {
-                // TODO: timeout error = ?
-                Log.w(TAG, error.getMessage());
+            public void success(Object o, Response response) {
+                if (mActivity == null) {
+                    return;
+                }
+                try {
+                    JSONObject jsonResponse = getJsonResponse(response);
+                    if (jsonResponse == null || jsonResponse.length() == 0) {
+                        Toast.makeText(mActivity, "No Scan Response.", Toast.LENGTH_LONG).show();
+                        return;
+                    }
+                    // Parsing the response.
+                    if (mListAdapter == null) {
+                        mListAdapter = new WifiDeviceListAdapter();
+                    }
+                    mListAdapter.clear();
+                    WifiDeviceListFragment.this.setListAdapter(mListAdapter);
+                    JSONArray deviceList = jsonResponse.getJSONArray(JSON_DEVICE_LIST);
+                    if (deviceList == null) {
+                        Toast.makeText(mActivity, "Error: No device list in response.", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    for (int i = 0; i < deviceList.length(); i++) {
+                        JSONObject device = (JSONObject) deviceList.get(i);
+                        String deviceName = device.getString(JSON_DEVICE_NAME);
+                        String deviceAddress = device.getString(JSON_DEVICE_ADDRESS);
+                        if ((deviceName != null && device.length() > 0)
+                                && (deviceAddress != null && deviceAddress.length() > 0)) {
+                            mListAdapter.addDevice(new WifiDevice(deviceName, deviceAddress));
+                        }
+                    }
+                } catch (Exception e) {
+                    Toast.makeText(getActivity(), e.getMessage(), Toast.LENGTH_LONG).show();
+                }
+                mActivity.updateOptionsMenu(false);
+                Log.d(TAG, "Stop Wifi Scan");
+            }
+
+            @Override
+            public void failure(RetrofitError error) {
+                Toast.makeText(getActivity(), error.getMessage(), Toast.LENGTH_LONG).show();
                 mActivity.updateOptionsMenu(false);
             }
         });
-
-        // Add the request to the RequestQueue.
-        stringRequest.setTag(TAG);
-        mRequestQueue.add(stringRequest);
     }
 
     /**
@@ -162,9 +161,6 @@ public class WifiDeviceListFragment extends ListFragment {
      */
     public void stopScan() {
         mActivity.updateOptionsMenu(false);
-        if (mRequestQueue != null) {
-            mRequestQueue.cancelAll(TAG);
-        }
     }
 
     @Override
@@ -256,6 +252,34 @@ public class WifiDeviceListFragment extends ListFragment {
     static class ViewHolder {
         TextView deviceName;
         TextView deviceAddress;
+    }
+
+    private JSONObject getJsonResponse(Response response) {
+        try {
+            String strResponse = getStringResponse(response);
+            if (strResponse == null) return null;
+            return new JSONObject(strResponse);
+        } catch (Exception e) {
+            Log.d(TAG, e.getMessage());
+            return null;
+        }
+    }
+
+    private String getStringResponse(Response response) {
+        try {
+            byte[] buff = new byte[2048];
+            response.getBody().in().read(buff);
+            return new String(buff).trim();
+        } catch (Exception e) {
+            Log.d(TAG, e.getMessage());
+            return null;
+        }
+    }
+
+    public interface RetrofitScanApi {
+
+        @GET("/")
+        public void scanForDevices(Callback<Object> callback);
     }
 
 }

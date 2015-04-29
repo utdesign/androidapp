@@ -19,7 +19,6 @@ import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
-import com.android.volley.RequestQueue;
 import com.github.mikephil.charting.charts.LineChart;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
@@ -69,7 +68,6 @@ public class GraphActivity extends Activity {
     private BluetoothGattCharacteristic mWriteCharacteristic;
     private BluetoothGattCharacteristic mNotifyCharacteristic;
 
-    private RequestQueue mRequestQueue;
     private int mResponseCounter = 0;
     private int mExpectedPackageNumber = 0;
     private boolean enableToggle = false;
@@ -471,8 +469,6 @@ public class GraphActivity extends Activity {
         if (isBluetoothConnection) {
             unbindService(mServiceConnection);
             mBluetoothLeService = null;
-        } else {
-            mRequestQueue.cancelAll(TAG);
         }
     }
 
