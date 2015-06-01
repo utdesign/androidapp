@@ -120,6 +120,7 @@ public class DeviceControlActivity extends Activity {
 
     // UI Elements
     private ProgressBar mProgressBar;
+    private MaterialDialog mIndeterminedProgressBar;
 
     private TextView mResponse;
     private TextView mLastInstruction;
@@ -179,6 +180,9 @@ public class DeviceControlActivity extends Activity {
                     Log.d(TAG, "session = " + mSessionId);
                     isServerRequest = true;
                     if (instruction.contains(GET_GRAPH_INSTRUCTION)) {
+                        mIndeterminedProgressBar = new MaterialDialog.Builder(context)
+                                .content("Cloud Server requested graph data. Processing in background ...")
+                                .show();
                         instruction = GET_SERVER_GRAPH_INSTRUCTION;
                     }
                     sendInstruction(instruction + "\n");
@@ -245,6 +249,10 @@ public class DeviceControlActivity extends Activity {
                     String notifiedText = new String(notifiedData).trim();
 
                     if (isServerRequest) {
+                        // TODO: send 20 values in one package.
+                        if (notifiedText.equalsIgnoreCase("OK")) {
+                            return;
+                        }
                         // Send response to server.
                         sendResponseInBackground(notifiedText);
                     } else {
@@ -685,6 +693,9 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void sendResponseInBackground(String responseText) {
+        if (mIndeterminedProgressBar != null && mIndeterminedProgressBar.isShowing()) {
+            mIndeterminedProgressBar.dismiss();
+        }
         if (responseText == null || responseText.isEmpty()) {
             sendErrorMessageInBackground("No response from device.");
             return;
@@ -710,6 +721,9 @@ public class DeviceControlActivity extends Activity {
     }
 
     private void sendErrorMessageInBackground(String errMessage) {
+        if (mIndeterminedProgressBar != null && mIndeterminedProgressBar.isShowing()) {
+            mIndeterminedProgressBar.dismiss();
+        }
         isServerRequest = false;
         try {
             // Send error message to cloud server.

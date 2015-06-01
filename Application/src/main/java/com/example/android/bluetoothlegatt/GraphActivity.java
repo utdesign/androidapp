@@ -192,15 +192,11 @@ public class GraphActivity extends Activity {
                                 enableToggle = true;
                                 invalidateOptionsMenu();
                             }
-                            mEntries = new ArrayList<>(mEntryBuffer);
                             mExpectedPackageNumber = 0;
+                            mEntries = new ArrayList<>(mEntryBuffer);
                             mEntryBuffer.clear();
-                            runOnUiThread(new Runnable() {
-                                @Override
-                                public void run() {
-                                    draw();
-                                }
-                            });
+                            Log.d(TAG, "DRAW HERE");
+                            //draw();
                         } else {
                             mExpectedPackageNumber++;
                         }
@@ -242,7 +238,7 @@ public class GraphActivity extends Activity {
                 colors(getProgressDrawableColors()).build());
     }
 
-    private void setGraphView() {
+    private void initializeGraphView() {
         setContentView(R.layout.activity_graph);
 
         mChart = (LineChart) findViewById(R.id.linechart);
@@ -355,6 +351,7 @@ public class GraphActivity extends Activity {
         } else {
             // Send get graph request to server.
         }
+
     }
 
     private void getGraphInstruction(Intent intent) {
@@ -612,18 +609,24 @@ public class GraphActivity extends Activity {
         set1.setColor(Color.rgb(104, 241, 175));
         set1.setFillColor(ColorTemplate.getHoloBlue());
 
-        LineData data = new LineData(xVals, set1);
+        final LineData data = new LineData(xVals, set1);
         data.setValueTextSize(9f);
         data.setDrawValues(false);
 
-        setGraphView();
-        // Set data
-        mChart.setData(data);
-        // Start drawing the graph
-        mChart.getLegend().setEnabled(false);
-        mChart.animateXY(2000, 2000);
-        mChart.invalidate();
-
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                if (mChart == null) {
+                    initializeGraphView();
+                }
+                // Set data
+                mChart.setData(data);
+                // Start drawing the graph
+                mChart.getLegend().setEnabled(false);
+                mChart.animateXY(2000, 2000);
+                mChart.invalidate();
+            }
+        });
     }
 
 }

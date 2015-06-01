@@ -32,6 +32,14 @@ import android.widget.Toast;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.astuetz.PagerSlidingTabStrip;
 
+import retrofit.Callback;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
+import retrofit.http.Field;
+import retrofit.http.FormUrlEncoded;
+import retrofit.http.POST;
+
 /**
  * Activity for scanning and displaying available Bluetooth LE devices.
  */
@@ -112,35 +120,39 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
     protected void onResume() {
         super.onResume();
 
-        final WifiManager manager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
-        if (!manager.isWifiEnabled()) {
-            // Enable Wifi
-            new MaterialDialog.Builder(this).title(R.string.dialog_title)
-                    .content(R.string.connection_enable_dialog_content)
-                    .positiveText(android.R.string.ok)
-                    .negativeText(android.R.string.cancel)
-                    .callback(new MaterialDialog.ButtonCallback() {
-                        @Override
-                        public void onPositive(MaterialDialog dialog) {
-                            manager.setWifiEnabled(true);
-                            return;
-                        }
-
-                        @Override
-                        public void onNegative(MaterialDialog dialog) {
-                            dialog.getOwnerActivity().finish();
-                            return;
-                        }
-                    })
-                    .show();
-        } else {
-            final ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
-            NetworkInfo info = connectivityManager.getActiveNetworkInfo();
-            if (info != null && !info.isConnected()) {
+        if (mCurrentTab == 1) {
+            final WifiManager manager = (WifiManager) getSystemService(Context.WIFI_SERVICE);
+            if (!manager.isWifiEnabled()) {
+                // Enable Wifi
                 new MaterialDialog.Builder(this).title(R.string.dialog_title)
-                        .content("Device is not connected to the Internet. Please check your Internet connection for full features.")
+                        .content(R.string.connection_enable_dialog_content)
                         .positiveText(android.R.string.ok)
+                        .negativeText(android.R.string.cancel)
+                        .callback(new MaterialDialog.ButtonCallback() {
+                            @Override
+                            public void onPositive(MaterialDialog dialog) {
+                                manager.setWifiEnabled(true);
+                                return;
+                            }
+
+                            @Override
+                            public void onNegative(MaterialDialog dialog) {
+                                if (dialog.getOwnerActivity() != null) {
+                                    dialog.getOwnerActivity().finish();
+                                }
+                                return;
+                            }
+                        })
                         .show();
+            } else {
+                final ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+                NetworkInfo info = connectivityManager.getActiveNetworkInfo();
+                if (info != null && !info.isConnected()) {
+                    new MaterialDialog.Builder(this).title(R.string.dialog_title)
+                            .content("Device is not connected to the Internet. Please check your Internet connection for full features.")
+                            .positiveText(android.R.string.ok)
+                            .show();
+                }
             }
         }
     }
@@ -198,3 +210,4 @@ public class DeviceScanActivity extends FragmentActivity implements ViewPager.On
         return mCurrentTab;
     }
 }
+
